@@ -55,7 +55,7 @@
   {
     "id": "asahina-rinka",
     "name": "Asahina Rinka",
-    "group": null,
+    "group": "MAGICAL SPEC",
     "folderName": "Asahina Rinka",
     "images": [
       "/participants/asahina-rinka/01.jpg",
@@ -73,7 +73,7 @@
   {
     "id": "asamiya-hinata",
     "name": "Asamiya Hinata",
-    "group": null,
+    "group": "RainTree",
     "folderName": "Asamiya Hinata",
     "images": [
       "/participants/asamiya-hinata/01.jpg",
@@ -91,7 +91,7 @@
   {
     "id": "ayu-amahane",
     "name": "Ayu Amahane",
-    "group": null,
+    "group": "RAViDAVi",
     "folderName": "Ayu Amahane",
     "images": [
       "/participants/ayu-amahane/01.jpg",
@@ -109,7 +109,7 @@
   {
     "id": "azusa-onodera",
     "name": "Azusa Onodera",
-    "group": null,
+    "group": "fav me",
     "folderName": "Azusa Onodera",
     "images": [
       "/participants/azusa-onodera/01.jpg",
@@ -127,7 +127,7 @@
   {
     "id": "chiba-yuna",
     "name": "Chiba Yuna",
-    "group": null,
+    "group": "Kyururin te Shitemite",
     "folderName": "Chiba Yuna",
     "images": [
       "/participants/chiba-yuna/01.jpg",
@@ -145,7 +145,7 @@
   {
     "id": "endo-rino",
     "name": "Endo Rino",
-    "group": null,
+    "group": "RainTree",
     "folderName": "Endo Rino",
     "images": [
       "/participants/endo-rino/01.jpg",
@@ -163,7 +163,7 @@
   {
     "id": "fuwawa",
     "name": "Fuwawa",
-    "group": null,
+    "group": "Kakumei Meloic",
     "folderName": "Fuwawa",
     "images": [
       "/participants/fuwawa/01.jpg",
@@ -181,7 +181,7 @@
   {
     "id": "hiruta-airi",
     "name": "Hiruta Airi",
-    "group": null,
+    "group": "Niji no Conquistador",
     "folderName": "Hiruta Airi",
     "images": [
       "/participants/hiruta-airi/01.jpg",
@@ -217,7 +217,7 @@
   {
     "id": "kanae-kokoro",
     "name": "Kanae Kokoro",
-    "group": null,
+    "group": "SKA noaf",
     "folderName": "Kanae Kokoro",
     "images": [
       "/participants/kanae-kokoro/01.jpg",
@@ -235,7 +235,7 @@
   {
     "id": "kanzaki-ran",
     "name": "Kanzaki Ran",
-    "group": null,
+    "group": "Root mimi",
     "folderName": "Kanzaki Ran",
     "images": [
       "/participants/kanzaki-ran/01.jpg",
@@ -253,7 +253,7 @@
   {
     "id": "kohane-kurumi",
     "name": "Kohane Kurumi",
-    "group": null,
+    "group": "Beloved",
     "folderName": "Kohane Kurumi",
     "images": [
       "/participants/kohane-kurumi/01.jpg",
@@ -271,7 +271,7 @@
   {
     "id": "matsumoto-karen",
     "name": "Matsumoto Karen",
-    "group": null,
+    "group": "FRUITS ZIPPER, PiKi",
     "folderName": "Matsumoto Karen",
     "images": [
       "/participants/matsumoto-karen/01.jpg",
@@ -289,7 +289,7 @@
   {
     "id": "miokawa-maika",
     "name": "Miokawa Maika",
-    "group": null,
+    "group": "fav me",
     "folderName": "Miokawa Maika",
     "images": [
       "/participants/miokawa-maika/01.jpg",
@@ -307,7 +307,7 @@
   {
     "id": "mishina-ruka",
     "name": "Mishina Ruka",
-    "group": null,
+    "group": "Wasuta",
     "folderName": "Mishina Ruka",
     "images": [
       "/participants/mishina-ruka/01.jpg",
@@ -325,7 +325,7 @@
   {
     "id": "miyoshi-yuki",
     "name": "Miyoshi Yuki",
-    "group": null,
+    "group": "AND CaaaLL",
     "folderName": "Miyoshi Yuki",
     "images": [
       "/participants/miyoshi-yuki/01.jpg",
@@ -343,7 +343,7 @@
   {
     "id": "momona-matsumoto",
     "name": "Momona Matsumoto",
-    "group": null,
+    "group": "Takane no Nadeshiko",
     "folderName": "Momona Matsumoto",
     "images": [
       "/participants/momona-matsumoto/01.jpg",
@@ -379,7 +379,7 @@
   {
     "id": "nigemizu-amu",
     "name": "Nigemizu Amu",
-    "group": null,
+    "group": "Kyururin te Shitemite",
     "folderName": "Nigemizu Amu",
     "images": [
       "/participants/nigemizu-amu/01.jpg",
@@ -397,7 +397,7 @@
   {
     "id": "nozomi-suzuhara",
     "name": "Nozomi Suzuhara",
-    "group": null,
+    "group": "Love Live! Superstar!!",
     "folderName": "Nozomi Suzuhara",
     "images": [
       "/participants/nozomi-suzuhara/01.jpg",
@@ -433,7 +433,7 @@
   {
     "id": "otani-emiri",
     "name": "Otani Emiri",
-    "group": null,
+    "group": "=LOVE",
     "folderName": "Otani Emiri",
     "images": [
       "/participants/otani-emiri/01.jpg",
@@ -451,7 +451,7 @@
   {
     "id": "otoshima-risa",
     "name": "Otoshima Risa",
-    "group": null,
+    "group": "=LOVE",
     "folderName": "Otoshima Risa",
     "images": [
       "/participants/otoshima-risa/01.jpg",
@@ -469,7 +469,7 @@
   {
     "id": "risa-furusawa",
     "name": "Risa Furusawa",
-    "group": null,
+    "group": "CUTIE STREET",
     "folderName": "Risa Furusawa",
     "images": [
       "/participants/risa-furusawa/01.jpg",
@@ -487,7 +487,7 @@
   {
     "id": "saito-kiara",
     "name": "Saito Kiara",
-    "group": null,
+    "group": "=LOVE",
     "folderName": "Saito Kiara",
     "images": [
       "/participants/saito-kiara/01.jpg",
@@ -504,7 +504,7 @@
   {
     "id": "sakikawa-hinano",
     "name": "Sakikawa Hinano",
-    "group": null,
+    "group": "BanG Dream!",
     "folderName": "Sakikawa Hinano",
     "images": [
       "/participants/sakikawa-hinano/01.jpg",
@@ -522,7 +522,7 @@
   {
     "id": "sakuraba-haruka",
     "name": "Sakuraba Haruka",
-    "group": null,
+    "group": "CUTIE STREET, PiKi",
     "folderName": "Sakuraba Haruka",
     "images": [
       "/participants/sakuraba-haruka/01.jpg",
@@ -540,7 +540,7 @@
   {
     "id": "sakurai-momo",
     "name": "Sakurai Momo",
-    "group": null,
+    "group": "≠ME",
     "folderName": "Sakurai Momo",
     "images": [
       "/participants/sakurai-momo/01.jpg",
@@ -558,7 +558,7 @@
   {
     "id": "sato-rika",
     "name": "Sato Rika",
-    "group": null,
+    "group": "RainTree",
     "folderName": "Sato Rika",
     "images": [
       "/participants/sato-rika/01.jpg",
@@ -594,7 +594,7 @@
   {
     "id": "tsuki-nagisa",
     "name": "Tsuki Nagisa",
-    "group": null,
+    "group": "Yoyoyoo",
     "folderName": "Tsuki Nagisa",
     "images": [
       "/participants/tsuki-nagisa/01.jpg",
