@@ -1,0 +1,140 @@
+@import "tailwindcss";
+
+:root {
+  color-scheme: dark;
+}
+
+html,
+body {
+  background-color: #000000;
+  color: #ffffff;
+  font-family: var(--font-geist-sans), system-ui, -apple-system, BlinkMacSystemFont,
+    "Segoe UI", sans-serif;
+  overflow-x: hidden;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Custom minimalist white-on-black range slider */
+input[type="range"].vt-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 6px;
+  border-radius: 9999px;
+  outline: none;
+  cursor: pointer;
+}
+
+input[type="range"].vt-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 22px;
+  height: 22px;
+  border-radius: 9999px;
+  background: #ffffff;
+  border: 2px solid #000000;
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.35);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+input[type="range"].vt-slider::-webkit-slider-thumb:hover {
+  transform: scale(1.1);
+  box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.25);
+}
+
+input[type="range"].vt-slider::-moz-range-thumb {
+  width: 22px;
+  height: 22px;
+  border-radius: 9999px;
+  background: #ffffff;
+  border: 2px solid #000000;
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.35);
+  transition: transform 0.15s ease;
+}
+
+/* Directional Slide In / Slide Out animations for the 3-tab switch */
+@keyframes vtSlideInFromRight {
+  from {
+    opacity: 0;
+    transform: translate3d(32px, 0, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@keyframes vtSlideInFromLeft {
+  from {
+    opacity: 0;
+    transform: translate3d(-32px, 0, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@keyframes vtSlideOutToLeft {
+  from {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+  to {
+    opacity: 0;
+    transform: translate3d(-32px, 0, 0);
+  }
+}
+
+@keyframes vtSlideOutToRight {
+  from {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+  to {
+    opacity: 0;
+    transform: translate3d(32px, 0, 0);
+  }
+}
+
+.vt-slide-in-right {
+  animation: vtSlideInFromRight 320ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+.vt-slide-in-left {
+  animation: vtSlideInFromLeft 320ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+.vt-slide-out-left {
+  animation: vtSlideOutToLeft 220ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+.vt-slide-out-right {
+  animation: vtSlideOutToRight 220ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+/* Swiper dark theme overrides */
+.vt-zoom-swiper .swiper-button-next,
+.vt-zoom-swiper .swiper-button-prev {
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(12px);
+  width: 44px;
+  height: 44px;
+  border-radius: 9999px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+.vt-zoom-swiper .swiper-button-next::after,
+.vt-zoom-swiper .swiper-button-prev::after {
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.vt-zoom-swiper .swiper-pagination-bullet {
+  background: rgba(255, 255, 255, 0.35);
+}
+
+.vt-zoom-swiper .swiper-pagination-bullet-active {
+  background: #ffffff;
+}
