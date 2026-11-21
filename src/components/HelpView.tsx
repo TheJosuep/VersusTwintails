@@ -1,7 +1,11 @@
 "use client";
 
 import { CRITERIA } from "@/lib/criteria";
-import { TOTAL_MATCHUPS, TOTAL_PARTICIPANTS } from "@/lib/participants";
+import {
+  SWISS_ROUNDS,
+  TOTAL_MATCHUPS,
+  TOTAL_PARTICIPANTS,
+} from "@/lib/participants";
 
 export function HelpView() {
   return (
@@ -11,30 +15,30 @@ export function HelpView() {
           Cómo funciona
         </h2>
         <p className="mt-1 text-xs text-white/55">
-          Guía rápida del torneo todos contra todos
+          Torneo Suizo de {SWISS_ROUNDS} rondas · {TOTAL_MATCHUPS} duelos totales
         </p>
 
         <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2">
           {[
             {
               step: "01",
-              title: "Usuario y autoguardado",
-              desc: "Tu progreso se guarda en la nube con tu nombre de usuario. Puedes salir y retomarlo después.",
+              title: "Rondas suizas en 70 duelos",
+              desc: `En lugar de 595 duelos, el formato Suizo enfrenta a las ${TOTAL_PARTICIPANTS} participantes en ${SWISS_ROUNDS} rondas (${TOTAL_MATCHUPS} duelos) emparejando rivales de nivel similar.`,
             },
             {
               step: "02",
-              title: "Compara con zoom",
-              desc: "Desliza entre las fotos o usa las miniaturas inferiores. Toca cualquier imagen para abrir el zoom.",
+              title: "Pantalla de luz global",
+              desc: "En móvil toca la imagen para abrir la pantalla de luz con zoom; en escritorio pulsa el ícono [ ] de pantalla completa.",
             },
             {
               step: "03",
               title: "Evalúa una vez y elige ganadora",
-              desc: `Califica del 0 al 10 a las ${TOTAL_PARTICIPANTS} participantes la primera vez que aparecen. En duelos siguientes solo eliges a la ganadora.`,
+              desc: `Califica del 0 al 10 en Ronda 1 (18 duelos). En las rondas 2–4 solo eliges a la ganadora para calcular el Rating Elo (Bradley-Terry).`,
             },
             {
               step: "04",
-              title: "Desbloquea resultados",
-              desc: `Al completar las ${TOTAL_PARTICIPANTS} evaluaciones se desbloquea la Tabla de resultados y puedes seguir jugando los ${TOTAL_MATCHUPS} duelos.`,
+              title: "Resultados separados",
+              desc: "Al terminar los 70 duelos puedes alternar entre Mis resultados y Comunidad, y ordenar por Versus (Elo) o por Puntuación (0–10).",
             },
           ].map((item) => (
             <div

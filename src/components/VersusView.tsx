@@ -1,21 +1,22 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { ArrowRight, CheckCircle2, Sparkles } from "lucide-react";
+import { ArrowRight, CheckCircle2, Sparkles, Swords } from "lucide-react";
+import { DEFAULT_SCORES, getAverageScore } from "@/lib/criteria";
 import {
-  DEFAULT_SCORES,
-  getAverageScore,
-} from "@/lib/criteria";
+  computeBradleyTerryRatings,
+  generateNextSwissRound,
+  getRoundForIndex,
+  getRoundLabel,
+} from "@/lib/matchmaking";
 import {
   PARTICIPANT_MAP,
   PARTICIPANTS,
+  SWISS_ROUNDS,
   TOTAL_MATCHUPS,
   TOTAL_PARTICIPANTS,
 } from "@/lib/participants";
-import {
-  saveMatchupVote,
-  validateAndCompleteSurvey,
-} from "@/lib/storage";
+import { saveMatchupVote, validateAndCompleteSurvey } from "@/lib/storage";
 import type {
   CriterionKey,
   MatchupPair,
@@ -30,7 +31,7 @@ import { ParticipantGallery } from "./ParticipantGallery";
 interface VersusViewProps {
   user: VtUser;
   evaluationsMap: Map<string, VtEvaluation>;
-  matchesCount: number;
+  matches: VtMatch[];
   onVoteSuccess: (result: {
     evaluations: VtEvaluation[];
     match: VtMatch;
@@ -63,7 +64,7 @@ function readDraft(key: string): { a?: Scores; b?: Scores } | null {
 export function VersusView({
   user,
   evaluationsMap,
-  matchesCount,
+  matches,
   onVoteSuccess,
   onUserUpdated,
   onOpenResults,
@@ -92,9 +93,9 @@ export function VersusView({
   const [editedB, setEditedB] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [roundNotice, setRoundNotice] = useState<string | null>(null);
   const [duelAnimKey, setDuelAnimKey] = useState(0);
 
-  // Sync local sliders when moving to a new matchup or recovering session
   useEffect(() => {
     if (!pair) return;
     const storedEvalA = evaluationsMap.get(pair.a);
@@ -116,15 +117,37 @@ export function VersusView({
     setErrorMsg(null);
   }, [pair, evaluationsMap, user.username]);
 
+  useEffect(() => {
+    if (!roundNotice) return;
+    const t = setTimeout(() => setRoundNotice(null), 4000);
+    return () => clearTimeout(t);
+  }, [roundNotice]);
+
   const evaluatedCount = useMemo(
     () => PARTICIPANTS.filter((p) => evaluationsMap.has(p.id)).length,
     [evaluationsMap]
   );
 
+  const currentRound = pair?.round ?? getRoundForIndex(currentIndex, TOTAL_PARTICIPANTS);
   const progressPct = Math.min(
     100,
-    Math.round((evaluatedCount / TOTAL_PARTICIPANTS) * 100)
+    Math.round((Math.min(matches.length, TOTAL_MATCHUPS) / TOTAL_MATCHUPS) * 100)
   );
+
+  const topThreePreview = useMemo(() => {
+    if (pair) return [];
+    const ratings = computeBradleyTerryRatings(
+      PARTICIPANTS.map((p) => p.id),
+      matches
+    );
+    return [...PARTICIPANTS]
+      .map((p) => ({ participant: p, stats: ratings.get(p.id)! }))
+      .sort(
+        (a, b) =>
+          b.stats.rating - a.stats.rating || b.stats.wins - a.stats.wins
+      )
+      .slice(0, 3);
+  }, [pair, matches]);
 
   const updateDraft = (nextA: Scores, nextB: Scores) => {
     if (!draftKey) return;
@@ -173,17 +196,47 @@ export function VersusView({
         });
       }
 
+      const matchMap = new Map(matches.map((m) => [m.pair_key, m]));
+      matchMap.set(pair.pairKey, {
+        user_id: user.id,
+        pair_key: pair.pairKey,
+        participant_a_id: pair.a,
+        participant_b_id: pair.b,
+        winner_id: winnerId,
+      });
+      const nextMatches = Array.from(matchMap.values());
+
+      const nextIndex = currentIndex + 1;
+      let updatedQueue: MatchupPair[] | undefined;
+
+      if (nextIndex >= queue.length && nextIndex < TOTAL_MATCHUPS) {
+        const nextRound = getRoundForIndex(nextIndex, TOTAL_PARTICIPANTS);
+        const nextRoundPairs = generateNextSwissRound(
+          PARTICIPANTS.map((p) => p.id),
+          nextMatches,
+          nextRound
+        );
+        updatedQueue = [...queue, ...nextRoundPairs];
+        setRoundNotice(
+          `Ronda ${nextRound}/${SWISS_ROUNDS} generada · ${getRoundLabel(nextRound)}`
+        );
+      }
+
       const nextEvaluated = new Set(evaluationsMap.keys());
       nextEvaluated.add(participantA.id);
       nextEvaluated.add(participantB.id);
 
-      const markCompleted = nextEvaluated.size >= TOTAL_PARTICIPANTS;
+      const markCompleted =
+        nextEvaluated.size >= TOTAL_PARTICIPANTS &&
+        nextMatches.length >= TOTAL_MATCHUPS;
+
       const result = await saveMatchupVote({
         user,
         pair,
         winnerId,
         evaluationsToUpsert,
-        nextIndex: currentIndex + 1,
+        nextIndex,
+        updatedQueue,
         markCompleted,
       });
 
@@ -223,21 +276,54 @@ export function VersusView({
 
   if (!pair || !participantA || !participantB) {
     return (
-      <div className="mx-auto max-w-xl rounded-[25px] border border-white/15 bg-white/[0.04] p-8 text-center backdrop-blur-md">
-        <CheckCircle2 className="mx-auto mb-3 h-10 w-10 text-white" />
-        <h2 className="text-2xl font-bold tracking-tight text-white">
-          Torneo completado
-        </h2>
-        <p className="mt-2 text-sm text-white/60">
-          Evaluaste a las {TOTAL_PARTICIPANTS} participantes y decidiste los{" "}
-          {TOTAL_MATCHUPS} enfrentamientos.
-        </p>
+      <div className="mx-auto flex max-w-2xl flex-col gap-5 rounded-[25px] border border-white/15 bg-white/[0.04] p-6 text-center backdrop-blur-md sm:p-8">
+        <div>
+          <CheckCircle2 className="mx-auto mb-3 h-10 w-10 text-white" />
+          <h2 className="text-2xl font-bold tracking-tight text-white sm:text-3xl">
+            Torneo Suizo completado
+          </h2>
+          <p className="mt-2 text-xs text-white/60 sm:text-sm">
+            Evaluaste a las {TOTAL_PARTICIPANTS} participantes y completaste tus{" "}
+            {matches.length} duelos.
+          </p>
+        </div>
+
+        {topThreePreview.length > 0 ? (
+          <div className="grid grid-cols-3 gap-2.5 text-left sm:gap-4">
+            {topThreePreview.map((entry, idx) => (
+              <div
+                key={entry.participant.id}
+                className="flex flex-col gap-2 rounded-[20px] border border-white/12 bg-black/55 p-2.5 sm:p-3"
+              >
+                <div className="relative aspect-[3/4] overflow-hidden rounded-[14px] bg-zinc-950">
+                  <img
+                    src={entry.participant.images[0]}
+                    alt={entry.participant.name}
+                    className="h-full w-full object-cover object-top"
+                  />
+                  <span className="absolute left-2 top-2 rounded-full bg-white px-2 py-0.5 text-[11px] font-bold text-black">
+                    #{idx + 1}
+                  </span>
+                </div>
+                <div className="min-w-0">
+                  <p className="truncate text-xs font-bold text-white sm:text-sm">
+                    {entry.participant.name}
+                  </p>
+                  <p className="text-[11px] text-white/55">
+                    Elo {entry.stats.rating} · {entry.stats.wins}-{entry.stats.losses}
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : null}
+
         <button
           type="button"
           onClick={onOpenResults}
-          className="mt-6 inline-flex items-center gap-2 rounded-[25px] bg-white px-6 py-3 text-sm font-bold text-black transition hover:bg-white/90 active:scale-95"
+          className="mx-auto inline-flex items-center gap-2 rounded-[25px] bg-white px-6 py-3.5 text-sm font-bold text-black transition hover:bg-white/90 active:scale-95"
         >
-          <span>Ver tabla de resultados</span>
+          <span>Explorar tabla de resultados</span>
           <ArrowRight className="h-4 w-4" />
         </button>
       </div>
@@ -246,22 +332,33 @@ export function VersusView({
 
   return (
     <div className="flex flex-col gap-5">
-      {/* Progress & Completion Status Bar */}
+      {/* Swiss Round & Progress Bar */}
       <div className="flex flex-col gap-3 rounded-[25px] border border-white/10 bg-white/[0.04] p-4 backdrop-blur-md sm:flex-row sm:items-center sm:justify-between">
         <div className="flex flex-1 flex-col gap-1.5">
-          <div className="flex items-center justify-between text-xs text-white/70">
-            <span>
-              Evaluación inicial:{" "}
-              <strong className="text-white">
-                {evaluatedCount}/{TOTAL_PARTICIPANTS}
-              </strong>{" "}
-              participantes
+          <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-white/70">
+            <span className="inline-flex items-center gap-1.5 font-semibold text-white">
+              <Swords className="h-3.5 w-3.5 text-white/75" />
+              Ronda {currentRound}/{SWISS_ROUNDS} · {getRoundLabel(currentRound)}
             </span>
-            <span>
-              Duelo #{currentIndex + 1} / {TOTAL_MATCHUPS} · {matchesCount}{" "}
-              votados
-            </span>
+            <div className="flex items-center gap-2.5 text-white/65">
+              {evaluatedCount < TOTAL_PARTICIPANTS ? (
+                <span>
+                  Evaluadas:{" "}
+                  <strong className="text-white">
+                    {evaluatedCount}/{TOTAL_PARTICIPANTS}
+                  </strong>
+                </span>
+              ) : null}
+              <span>
+                Duelo{" "}
+                <strong className="text-white">
+                  {Math.min(currentIndex + 1, TOTAL_MATCHUPS)}
+                </strong>{" "}
+                / {TOTAL_MATCHUPS}
+              </span>
+            </div>
           </div>
+
           <div className="h-1.5 w-full overflow-hidden rounded-full bg-white/10">
             <div
               className="h-full rounded-full bg-white transition-all duration-500 ease-out"
@@ -279,7 +376,8 @@ export function VersusView({
             <Sparkles className="h-3.5 w-3.5" />
             <span>Resultados desbloqueados · Ver tabla</span>
           </button>
-        ) : evaluatedCount >= TOTAL_PARTICIPANTS ? (
+        ) : evaluatedCount >= TOTAL_PARTICIPANTS &&
+          matches.length >= TOTAL_MATCHUPS ? (
           <button
             type="button"
             disabled={isSubmitting}
@@ -287,10 +385,17 @@ export function VersusView({
             className="inline-flex shrink-0 items-center justify-center gap-2 rounded-[25px] bg-white px-4 py-2 text-xs font-bold text-black transition hover:bg-white/90 active:scale-95 disabled:opacity-50"
           >
             <CheckCircle2 className="h-3.5 w-3.5" />
-            <span>Confirmar envío y ver resultados</span>
+            <span>Finalizar y ver resultados</span>
           </button>
         ) : null}
       </div>
+
+      {roundNotice ? (
+        <div className="flex items-center gap-2 self-start rounded-[25px] border border-white/20 bg-white/10 px-4 py-2 text-xs font-medium text-white backdrop-blur-md">
+          <Sparkles className="h-3.5 w-3.5 shrink-0" />
+          <span>{roundNotice}</span>
+        </div>
+      ) : null}
 
       {errorMsg ? (
         <div className="rounded-[20px] border border-red-500/40 bg-red-500/10 px-4 py-3 text-xs text-red-200">
@@ -303,7 +408,7 @@ export function VersusView({
         key={`${pair.pairKey}-${duelAnimKey}`}
         className="vt-slide-in-right grid grid-cols-2 gap-2.5 lg:gap-6"
       >
-        <div className="lg:col-start-1 lg:row-start-1">
+        <div className="min-w-0 lg:col-start-1 lg:row-start-1">
           <ParticipantGallery
             key={participantA.id}
             participant={participantA}
@@ -314,7 +419,7 @@ export function VersusView({
           />
         </div>
 
-        <div className="lg:col-start-2 lg:row-start-1">
+        <div className="min-w-0 lg:col-start-2 lg:row-start-1">
           <ParticipantGallery
             key={participantB.id}
             participant={participantB}
@@ -325,7 +430,7 @@ export function VersusView({
           />
         </div>
 
-        <div className="col-span-2 lg:col-span-1 lg:col-start-1 lg:row-start-2">
+        <div className="col-span-2 min-w-0 lg:col-span-1 lg:col-start-1 lg:row-start-2">
           <EvaluationPanel
             key={`${pair.pairKey}-eval-a`}
             participant={participantA}

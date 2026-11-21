@@ -4,9 +4,12 @@ import { useState } from "react";
 import { Swiper, SwiperSlide } from "swiper/react";
 import { FreeMode, Thumbs } from "swiper/modules";
 import type { Swiper as SwiperType } from "swiper";
-import { Maximize2 } from "lucide-react";
+import { Maximize } from "lucide-react";
 import type { Participant } from "@/lib/types";
-import { ImageZoomModal } from "./ImageZoomModal";
+import {
+  shouldOpenLightboxOnImageTap,
+  useLightbox,
+} from "./GlobalLightbox";
 
 import "swiper/css";
 import "swiper/css/free-mode";
@@ -23,13 +26,28 @@ export function ParticipantGallery({
   sideLabel,
   isSelectedWinner = false,
 }: ParticipantGalleryProps) {
+  const { openLightbox } = useLightbox();
   const [thumbsSwiper, setThumbsSwiper] = useState<SwiperType | null>(null);
   const [activeIndex, setActiveIndex] = useState(0);
-  const [zoomOpen, setZoomOpen] = useState(false);
+
+  const openGalleryLightbox = (index: number) => {
+    openLightbox({
+      images: participant.images,
+      initialIndex: index,
+      title: participant.name,
+      subtitle: participant.group,
+    });
+  };
+
+  const handleMainImageClick = (index: number) => {
+    if (shouldOpenLightboxOnImageTap()) {
+      openGalleryLightbox(index);
+    }
+  };
 
   return (
     <div
-      className={`flex flex-col gap-2.5 rounded-[25px] border bg-white/[0.04] p-2.5 backdrop-blur-md transition duration-300 sm:gap-3.5 sm:p-4 ${
+      className={`flex min-w-0 w-full flex-col gap-2.5 rounded-[25px] border bg-white/[0.04] p-2.5 backdrop-blur-md transition duration-300 sm:gap-3.5 sm:p-4 ${
         isSelectedWinner
           ? "border-white/80 shadow-[0_0_30px_rgba(255,255,255,0.12)]"
           : "border-white/10 hover:border-white/25"
@@ -50,42 +68,41 @@ export function ParticipantGallery({
 
         <button
           type="button"
-          onClick={() => setZoomOpen(true)}
+          onClick={() => openGalleryLightbox(activeIndex)}
           className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-white/15 bg-white/10 text-white/85 transition hover:scale-105 hover:bg-white hover:text-black active:scale-95 sm:h-9 sm:w-9"
-          aria-label={`Ampliar foto de ${participant.name}`}
-          title="Abrir zoom"
+          aria-label={`Pantalla completa de ${participant.name}`}
+          title="Ver en pantalla de luz"
         >
-          <Maximize2 className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+          <Maximize className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
         </button>
       </div>
 
       {/* Main Image Carousel (Swiper.js) */}
-      <div className="relative overflow-hidden rounded-[20px] border border-white/10 bg-zinc-950">
+      <div className="relative min-w-0 w-full overflow-hidden rounded-[20px] border border-white/10 bg-zinc-950">
         <Swiper
           modules={[Thumbs]}
           thumbs={{
             swiper:
               thumbsSwiper && !thumbsSwiper.destroyed ? thumbsSwiper : null,
           }}
+          observer
+          observeParents
           spaceBetween={8}
           onSlideChange={(swiper) => setActiveIndex(swiper.activeIndex)}
+          onResize={(swiper) => swiper.update()}
+          onClick={(swiper) => handleMainImageClick(swiper.activeIndex)}
           className="aspect-[3/4] w-full"
         >
           {participant.images.map((src, idx) => (
             <SwiperSlide key={src} className="h-full w-full">
-              <button
-                type="button"
-                onClick={() => setZoomOpen(true)}
-                className="group relative block h-full w-full cursor-zoom-in focus:outline-none"
-                aria-label={`Ver imagen ${idx + 1} de ${participant.name} con zoom`}
-              >
+              <div className="group relative block h-full w-full cursor-pointer sm:cursor-grab sm:active:cursor-grabbing">
                 <img
                   src={src}
                   alt={`${participant.name} ${idx + 1}`}
                   loading={idx === 0 ? "eager" : "lazy"}
-                  className="h-full w-full object-contain transition duration-300 group-hover:scale-[1.02]"
+                  className="h-full w-full object-contain transition duration-300 sm:group-hover:scale-[1.015]"
                 />
-              </button>
+              </div>
             </SwiperSlide>
           ))}
         </Swiper>
@@ -99,6 +116,8 @@ export function ParticipantGallery({
       <Swiper
         onSwiper={setThumbsSwiper}
         modules={[FreeMode, Thumbs]}
+        observer
+        observeParents
         spaceBetween={6}
         slidesPerView={4}
         breakpoints={{
@@ -107,7 +126,8 @@ export function ParticipantGallery({
         }}
         freeMode
         watchSlidesProgress
-        className="w-full"
+        onResize={(swiper) => swiper.update()}
+        className="w-full min-w-0"
       >
         {participant.images.map((src, idx) => {
           const isActive = idx === activeIndex;
@@ -131,15 +151,6 @@ export function ParticipantGallery({
           );
         })}
       </Swiper>
-
-      <ImageZoomModal
-        isOpen={zoomOpen}
-        images={participant.images}
-        initialIndex={activeIndex}
-        title={participant.name}
-        subtitle={participant.group}
-        onClose={() => setZoomOpen(false)}
-      />
     </div>
   );
 }

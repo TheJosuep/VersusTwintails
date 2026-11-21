@@ -19,6 +19,17 @@ export interface MatchupPair {
   a: string;
   b: string;
   pairKey: string;
+  round?: number;
+}
+
+export interface ParticipantRating {
+  id: string;
+  rating: number;
+  wins: number;
+  losses: number;
+  played: number;
+  winRate: number;
+  buchholz: number;
 }
 
 export interface VtUser {
@@ -29,6 +40,12 @@ export interface VtUser {
   current_matchup_index: number;
   is_completed: boolean;
   completed_at: string | null;
+}
+
+export interface VtUserSummary {
+  id: string;
+  display_name: string;
+  is_completed: boolean;
 }
 
 export interface VtEvaluation {

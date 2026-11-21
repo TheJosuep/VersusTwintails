@@ -2,9 +2,15 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { CheckCircle2, Lock, LogOut, Sparkles } from "lucide-react";
-import { PARTICIPANTS, TOTAL_PARTICIPANTS } from "@/lib/participants";
+import {
+  PARTICIPANTS,
+  SWISS_ROUNDS,
+  TOTAL_MATCHUPS,
+  TOTAL_PARTICIPANTS,
+} from "@/lib/participants";
 import { loadOrCreateUser } from "@/lib/storage";
 import type { VtEvaluation, VtMatch, VtUser } from "@/lib/types";
+import { LightboxProvider } from "./GlobalLightbox";
 import { HelpView } from "./HelpView";
 import { ResultsView } from "./ResultsView";
 import { VersusView } from "./VersusView";
@@ -54,7 +60,10 @@ export function TournamentApp() {
   );
 
   const resultsUnlocked = Boolean(
-    user && (user.is_completed || evaluatedCount >= TOTAL_PARTICIPANTS)
+    user &&
+      (user.is_completed ||
+        (evaluatedCount >= TOTAL_PARTICIPANTS &&
+          matches.length >= TOTAL_MATCHUPS))
   );
 
   const signInWithUsername = useCallback(
@@ -83,8 +92,8 @@ export function TournamentApp() {
         if (loaded.isReturning) {
           showToast(
             loaded.user.is_completed
-              ? `Encuesta completada recuperada (${loaded.evaluations.length}/${TOTAL_PARTICIPANTS})`
-              : `Progreso recuperado · ${loaded.evaluations.length}/${TOTAL_PARTICIPANTS} evaluadas`
+              ? `Torneo completado recuperado (${loaded.matches.length} duelos)`
+              : `Progreso recuperado · ${Math.min(loaded.matches.length, TOTAL_MATCHUPS)}/${TOTAL_MATCHUPS} duelos`
           );
         } else {
           showToast(`Sesión creada para ${loaded.user.display_name}`);
@@ -173,7 +182,7 @@ export function TournamentApp() {
         <VersusView
           user={user}
           evaluationsMap={evaluationsMap}
-          matchesCount={matches.length}
+          matches={matches}
           onVoteSuccess={handleVoteSuccess}
           onUserUpdated={setUser}
           onOpenResults={() => switchTab(1)}
@@ -181,7 +190,13 @@ export function TournamentApp() {
       );
     }
     if (tab === 1) {
-      return <ResultsView userId={user.id} />;
+      return (
+        <ResultsView
+          userId={user.id}
+          ownEvaluations={evaluations}
+          ownMatches={matches}
+        />
+      );
     }
     return <HelpView />;
   };
@@ -201,7 +216,7 @@ export function TournamentApp() {
       <main className="flex min-h-screen items-center justify-center bg-black px-4 py-10">
         <div className="w-full max-w-md rounded-[25px] border border-white/15 bg-white/[0.04] p-6 backdrop-blur-xl sm:p-8">
           <span className="text-[11px] font-semibold uppercase tracking-[0.2em] text-white/45">
-            Torneo Todos Contra Todos
+            Torneo Suizo · {SWISS_ROUNDS} Rondas · {TOTAL_MATCHUPS} Duelos
           </span>
           <h1 className="mt-2 text-3xl font-bold tracking-tight text-white sm:text-4xl">
             Versus Twintails
@@ -245,135 +260,142 @@ export function TournamentApp() {
   }
 
   return (
-    <main className="mx-auto flex min-h-screen w-full max-w-6xl flex-col gap-5 px-3 py-5 sm:gap-6 sm:px-6 sm:py-8">
-      {/* Minimalist Header */}
-      <header className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight text-white sm:text-3xl">
-            Versus Twintails
-          </h1>
-          <p className="text-xs text-white/55">
-            {user.display_name} ·{" "}
-            {user.is_completed ? "Encuesta validada" : "Autoguardado activo"}
-          </p>
-        </div>
+    <LightboxProvider>
+      <main className="mx-auto flex min-h-screen w-full max-w-6xl flex-col gap-5 px-3 py-5 sm:gap-6 sm:px-6 sm:py-8">
+        {/* Minimalist Header */}
+        <header className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight text-white sm:text-3xl">
+              Versus Twintails
+            </h1>
+            <p className="text-xs text-white/55">
+              {user.display_name} ·{" "}
+              {user.is_completed ? "Torneo completado" : "Autoguardado activo"}
+            </p>
+          </div>
 
-        <div className="flex items-center gap-2">
-          {user.is_completed ? (
-            <span className="inline-flex items-center gap-1 rounded-full border border-white/20 bg-white/10 px-3 py-1.5 text-[11px] font-medium text-white backdrop-blur-md">
-              <CheckCircle2 className="h-3.5 w-3.5" />
-              Finalizado
-            </span>
-          ) : null}
+          <div className="flex items-center gap-2">
+            {user.is_completed ? (
+              <span className="inline-flex items-center gap-1 rounded-full border border-white/20 bg-white/10 px-3 py-1.5 text-[11px] font-medium text-white backdrop-blur-md">
+                <CheckCircle2 className="h-3.5 w-3.5" />
+                Finalizado
+              </span>
+            ) : null}
 
-          <button
-            type="button"
-            onClick={handleLogout}
-            className="inline-flex items-center gap-1.5 rounded-full border border-white/15 bg-white/5 px-3.5 py-1.5 text-xs font-medium text-white/80 backdrop-blur-md transition hover:bg-white hover:text-black active:scale-95"
-            title="Cambiar usuario"
-          >
-            <LogOut className="h-3.5 w-3.5" />
-            <span>Cambiar</span>
-          </button>
-        </div>
-      </header>
+            <button
+              type="button"
+              onClick={handleLogout}
+              className="inline-flex items-center gap-1.5 rounded-full border border-white/15 bg-white/5 px-3.5 py-1.5 text-xs font-medium text-white/80 backdrop-blur-md transition hover:bg-white hover:text-black active:scale-95"
+              title="Cambiar usuario"
+            >
+              <LogOut className="h-3.5 w-3.5" />
+              <span>Cambiar</span>
+            </button>
+          </div>
+        </header>
 
-      {/* Recovery / Save Toast */}
-      {toast ? (
-        <div className="flex items-center gap-2 self-start rounded-[25px] border border-white/20 bg-white/10 px-4 py-2 text-xs text-white backdrop-blur-md">
-          <Sparkles className="h-3.5 w-3.5 shrink-0" />
-          <span>{toast}</span>
-        </div>
-      ) : null}
-
-      {/* 3-Button Animated Switch */}
-      <div className="flex flex-col gap-2">
-        <nav
-          aria-label="Secciones"
-          className="relative grid grid-cols-3 rounded-[25px] border border-white/12 bg-white/[0.05] p-1 backdrop-blur-md"
-        >
-          {/* Sliding active background */}
-          <div
-            aria-hidden="true"
-            className="pointer-events-none absolute bottom-1 left-1 top-1 w-[calc((100%-8px)/3)] rounded-[21px] bg-white transition-transform duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]"
-            style={{ transform: `translateX(${activeTab * 100}%)` }}
-          />
-
-          <button
-            type="button"
-            onClick={() => switchTab(0)}
-            className={`relative z-10 rounded-[21px] px-2 py-2.5 text-xs font-semibold transition-colors duration-200 sm:text-sm ${
-              activeTab === 0
-                ? "text-black"
-                : "text-white/70 hover:text-white"
-            }`}
-          >
-            Versus
-          </button>
-
-          <button
-            type="button"
-            onClick={() => switchTab(1)}
-            aria-disabled={!resultsUnlocked}
-            className={`relative z-10 flex items-center justify-center gap-1.5 rounded-[21px] px-2 py-2.5 text-xs font-semibold transition-colors duration-200 sm:text-sm ${
-              activeTab === 1
-                ? "text-black"
-                : resultsUnlocked
-                  ? "text-white/70 hover:text-white"
-                  : "text-white/40 hover:text-white/60"
-            }`}
-          >
-            {!resultsUnlocked ? <Lock className="h-3.5 w-3.5 shrink-0" /> : null}
-            <span className="truncate">Tabla de resultados</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => switchTab(2)}
-            className={`relative z-10 rounded-[21px] px-2 py-2.5 text-xs font-semibold transition-colors duration-200 sm:text-sm ${
-              activeTab === 2
-                ? "text-black"
-                : "text-white/70 hover:text-white"
-            }`}
-          >
-            Ayuda
-          </button>
-        </nav>
-
-        {lockNotice ? (
-          <p className="text-center text-xs text-white/70">
-            Evalúa a las {TOTAL_PARTICIPANTS} participantes ({evaluatedCount}/
-            {TOTAL_PARTICIPANTS}) para desbloquear la Tabla de resultados.
-          </p>
-        ) : null}
-      </div>
-
-      {/* Section Content with Directional Slide In / Slide Out */}
-      <section className="relative flex-1 overflow-hidden">
-        {exitingTab !== null ? (
-          <div
-            aria-hidden="true"
-            className={`pointer-events-none absolute inset-x-0 top-0 ${
-              slideDir === "forward" ? "vt-slide-out-left" : "vt-slide-out-right"
-            }`}
-          >
-            {renderTabContent(exitingTab)}
+        {/* Recovery / Save Toast */}
+        {toast ? (
+          <div className="flex items-center gap-2 self-start rounded-[25px] border border-white/20 bg-white/10 px-4 py-2 text-xs text-white backdrop-blur-md">
+            <Sparkles className="h-3.5 w-3.5 shrink-0" />
+            <span>{toast}</span>
           </div>
         ) : null}
 
-        <div
-          key={`tab-${activeTab}`}
-          className={
-            exitingTab !== null
-              ? slideDir === "forward"
-                ? "vt-slide-in-right"
-                : "vt-slide-in-left"
-              : ""
-          }
-        >
-          {renderTabContent(activeTab)}
+        {/* 3-Button Animated Switch */}
+        <div className="flex flex-col gap-2">
+          <nav
+            aria-label="Secciones"
+            className="relative grid grid-cols-3 rounded-[25px] border border-white/12 bg-white/[0.05] p-1 backdrop-blur-md"
+          >
+            {/* Sliding active background */}
+            <div
+              aria-hidden="true"
+              className="pointer-events-none absolute bottom-1 left-1 top-1 w-[calc((100%-8px)/3)] rounded-[21px] bg-white transition-transform duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]"
+              style={{ transform: `translateX(${activeTab * 100}%)` }}
+            />
+
+            <button
+              type="button"
+              onClick={() => switchTab(0)}
+              className={`relative z-10 rounded-[21px] px-2 py-2.5 text-xs font-semibold transition-colors duration-200 sm:text-sm ${
+                activeTab === 0
+                  ? "text-black"
+                  : "text-white/70 hover:text-white"
+              }`}
+            >
+              Versus
+            </button>
+
+            <button
+              type="button"
+              onClick={() => switchTab(1)}
+              aria-disabled={!resultsUnlocked}
+              className={`relative z-10 flex items-center justify-center gap-1.5 rounded-[21px] px-2 py-2.5 text-xs font-semibold transition-colors duration-200 sm:text-sm ${
+                activeTab === 1
+                  ? "text-black"
+                  : resultsUnlocked
+                    ? "text-white/70 hover:text-white"
+                    : "text-white/40 hover:text-white/60"
+              }`}
+            >
+              {!resultsUnlocked ? (
+                <Lock className="h-3.5 w-3.5 shrink-0" />
+              ) : null}
+              <span className="truncate">Tabla de resultados</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => switchTab(2)}
+              className={`relative z-10 rounded-[21px] px-2 py-2.5 text-xs font-semibold transition-colors duration-200 sm:text-sm ${
+                activeTab === 2
+                  ? "text-black"
+                  : "text-white/70 hover:text-white"
+              }`}
+            >
+              Ayuda
+            </button>
+          </nav>
+
+          {lockNotice ? (
+            <p className="text-center text-xs text-white/70">
+              Completa las {SWISS_ROUNDS} rondas suizas ({matches.length}/
+              {TOTAL_MATCHUPS} duelos y {evaluatedCount}/{TOTAL_PARTICIPANTS}{" "}
+              evaluadas) para desbloquear la Tabla de resultados.
+            </p>
+          ) : null}
         </div>
-      </section>
-    </main>
+
+        {/* Section Content with Directional Slide In / Slide Out */}
+        <section className="relative flex-1 overflow-hidden">
+          {exitingTab !== null ? (
+            <div
+              aria-hidden="true"
+              className={`pointer-events-none absolute inset-x-0 top-0 ${
+                slideDir === "forward"
+                  ? "vt-slide-out-left"
+                  : "vt-slide-out-right"
+              }`}
+            >
+              {renderTabContent(exitingTab)}
+            </div>
+          ) : null}
+
+          <div
+            key={`tab-${activeTab}`}
+            className={
+              exitingTab !== null
+                ? slideDir === "forward"
+                  ? "vt-slide-in-right"
+                  : "vt-slide-in-left"
+                : ""
+            }
+          >
+            {renderTabContent(activeTab)}
+          </div>
+        </section>
+      </main>
+    </LightboxProvider>
   );
 }

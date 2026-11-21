@@ -1,5 +1,14 @@
-import { generateMatchupQueue } from "./matchmaking";
-import { PARTICIPANTS } from "./participants";
+import {
+  generateCatchupMatches,
+  generateNextSwissRound,
+  generateRound1,
+  getRoundForIndex,
+} from "./matchmaking";
+import {
+  PARTICIPANTS,
+  TOTAL_MATCHUPS,
+  TOTAL_PARTICIPANTS,
+} from "./participants";
 import { supabase } from "./supabase";
 import type {
   MatchupPair,
@@ -7,6 +16,7 @@ import type {
   VtEvaluation,
   VtMatch,
   VtUser,
+  VtUserSummary,
 } from "./types";
 
 export function normalizeUsername(input: string): string {
@@ -18,6 +28,22 @@ export interface LoadedSession {
   evaluations: VtEvaluation[];
   matches: VtMatch[];
   isReturning: boolean;
+}
+
+function isLegacyOrEmptyQueue(queue: unknown): boolean {
+  if (!Array.isArray(queue) || queue.length === 0) return true;
+  if (queue.length > TOTAL_MATCHUPS) return true;
+  const first = queue[0] as MatchupPair | undefined;
+  return !first || typeof first.round !== "number";
+}
+
+function matchesToPairs(matches: VtMatch[]): MatchupPair[] {
+  return matches.map((m, idx) => ({
+    a: m.participant_a_id,
+    b: m.participant_b_id,
+    pairKey: m.pair_key,
+    round: getRoundForIndex(idx, TOTAL_PARTICIPANTS),
+  }));
 }
 
 // ponytail: Simple username-based recovery without passwords; upgrade path is Supabase Auth if multi-device privacy is needed.
@@ -40,11 +66,17 @@ export async function loadOrCreateUser(
     throw new Error(`No se pudo consultar el usuario: ${selectError.message}`);
   }
 
+  const allIds = PARTICIPANTS.map((p) => p.id);
+
   if (existing) {
     const user = existing as VtUser;
     const [evalRes, matchRes] = await Promise.all([
       supabase.from("vt_evaluations").select("*").eq("user_id", user.id),
-      supabase.from("vt_matches").select("*").eq("user_id", user.id),
+      supabase
+        .from("vt_matches")
+        .select("*")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: true }),
     ]);
 
     if (evalRes.error) {
@@ -58,33 +90,98 @@ export async function loadOrCreateUser(
       );
     }
 
-    if (!Array.isArray(user.matchup_queue) || user.matchup_queue.length === 0) {
-      const queue = generateMatchupQueue(PARTICIPANTS.map((p) => p.id));
+    const evaluations = (evalRes.data ?? []) as VtEvaluation[];
+    const matches = (matchRes.data ?? []) as VtMatch[];
+
+    // Migrate legacy 595-match round-robin users cleanly to the 4-round Swiss format without losing data.
+    if (isLegacyOrEmptyQueue(user.matchup_queue)) {
+      let nextQueue: MatchupPair[];
+      let nextIndex = 0;
+      let nextCompleted = user.is_completed;
+
+      if (matches.length === 0) {
+        nextQueue = generateRound1(allIds);
+        nextIndex = 0;
+      } else if (matches.length < TOTAL_MATCHUPS) {
+        const played = matchesToPairs(matches);
+        const catchup = generateCatchupMatches(allIds, matches, TOTAL_MATCHUPS);
+        nextQueue = [...played, ...catchup];
+        nextIndex = played.length;
+      } else {
+        nextQueue = matchesToPairs(matches);
+        nextIndex = nextQueue.length;
+        nextCompleted = true;
+      }
+
+      const now = new Date().toISOString();
       const { data: updated } = await supabase
         .from("vt_users")
-        .update({ matchup_queue: queue, updated_at: new Date().toISOString() })
+        .update({
+          matchup_queue: nextQueue,
+          current_matchup_index: nextIndex,
+          is_completed: nextCompleted,
+          completed_at:
+            nextCompleted && !user.completed_at ? now : user.completed_at,
+          updated_at: now,
+        })
         .eq("id", user.id)
         .select("*")
         .single();
-      if (updated) {
-        return {
-          user: updated as VtUser,
-          evaluations: (evalRes.data ?? []) as VtEvaluation[],
-          matches: (matchRes.data ?? []) as VtMatch[],
-          isReturning: true,
-        };
-      }
+
+      return {
+        user: (updated as VtUser | null) ?? {
+          ...user,
+          matchup_queue: nextQueue,
+          current_matchup_index: nextIndex,
+          is_completed: nextCompleted,
+        },
+        evaluations,
+        matches,
+        isReturning: true,
+      };
+    }
+
+    // Ensure current Swiss round is generated if user stopped right at a round boundary.
+    if (
+      user.current_matchup_index >= user.matchup_queue.length &&
+      user.matchup_queue.length < TOTAL_MATCHUPS
+    ) {
+      const nextRound = getRoundForIndex(
+        user.current_matchup_index,
+        TOTAL_PARTICIPANTS
+      );
+      const nextPairs = generateNextSwissRound(allIds, matches, nextRound);
+      const updatedQueue = [...user.matchup_queue, ...nextPairs];
+      const { data: updated } = await supabase
+        .from("vt_users")
+        .update({
+          matchup_queue: updatedQueue,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", user.id)
+        .select("*")
+        .single();
+
+      return {
+        user: (updated as VtUser | null) ?? {
+          ...user,
+          matchup_queue: updatedQueue,
+        },
+        evaluations,
+        matches,
+        isReturning: true,
+      };
     }
 
     return {
       user,
-      evaluations: (evalRes.data ?? []) as VtEvaluation[],
-      matches: (matchRes.data ?? []) as VtMatch[],
+      evaluations,
+      matches,
       isReturning: true,
     };
   }
 
-  const queue = generateMatchupQueue(PARTICIPANTS.map((p) => p.id));
+  const queue = generateRound1(allIds);
   const { data: created, error: insertError } = await supabase
     .from("vt_users")
     .insert({
@@ -117,6 +214,7 @@ export interface SaveVotePayload {
   winnerId: string;
   evaluationsToUpsert: Array<{ participantId: string; scores: Scores }>;
   nextIndex: number;
+  updatedQueue?: MatchupPair[];
   markCompleted: boolean;
 }
 
@@ -132,6 +230,7 @@ export async function saveMatchupVote(payload: SaveVotePayload): Promise<{
     winnerId,
     evaluationsToUpsert,
     nextIndex,
+    updatedQueue,
     markCompleted,
   } = payload;
 
@@ -174,6 +273,9 @@ export async function saveMatchupVote(payload: SaveVotePayload): Promise<{
     current_matchup_index: nextIndex,
     updated_at: now,
   };
+  if (updatedQueue) {
+    userUpdate.matchup_queue = updatedQueue;
+  }
   if (markCompleted && !user.is_completed) {
     userUpdate.is_completed = true;
     userUpdate.completed_at = now;
@@ -216,22 +318,37 @@ export async function saveMatchupVote(payload: SaveVotePayload): Promise<{
 export async function validateAndCompleteSurvey(
   userId: string
 ): Promise<VtUser> {
-  const { data: evalRows, error: evalErr } = await supabase
-    .from("vt_evaluations")
-    .select("participant_id")
-    .eq("user_id", userId);
+  const [evalRes, matchRes] = await Promise.all([
+    supabase
+      .from("vt_evaluations")
+      .select("participant_id")
+      .eq("user_id", userId),
+    supabase.from("vt_matches").select("id").eq("user_id", userId),
+  ]);
 
-  if (evalErr) {
-    throw new Error(`Error al validar envío: ${evalErr.message}`);
+  if (evalRes.error) {
+    throw new Error(`Error al validar envío: ${evalRes.error.message}`);
+  }
+  if (matchRes.error) {
+    throw new Error(`Error al validar duelos: ${matchRes.error.message}`);
   }
 
   const evaluatedIds = new Set(
-    (evalRows ?? []).map((r) => r.participant_id as string)
+    (evalRes.data ?? []).map((r) => r.participant_id as string)
   );
-  const missingCount = PARTICIPANTS.filter((p) => !evaluatedIds.has(p.id)).length;
+  const missingCount = PARTICIPANTS.filter(
+    (p) => !evaluatedIds.has(p.id)
+  ).length;
   if (missingCount > 0) {
     throw new Error(
       `Faltan ${missingCount} participantes por evaluar antes de finalizar.`
+    );
+  }
+
+  const playedCount = (matchRes.data ?? []).length;
+  if (playedCount < TOTAL_MATCHUPS) {
+    throw new Error(
+      `Faltan ${TOTAL_MATCHUPS - playedCount} duelos para completar las 4 rondas suizas.`
     );
   }
 
@@ -259,11 +376,12 @@ export async function validateAndCompleteSurvey(
 export interface GlobalResultsPayload {
   evaluations: VtEvaluation[];
   matches: VtMatch[];
+  users: VtUserSummary[];
 }
 
 // ponytail: Client-side aggregation across all rows; upgrade to a Postgres SQL view/RPC once submissions exceed ~5,000 rows.
 export async function fetchGlobalResults(): Promise<GlobalResultsPayload> {
-  const [evalRes, matchRes] = await Promise.all([
+  const [evalRes, matchRes, userRes] = await Promise.all([
     supabase
       .from("vt_evaluations")
       .select(
@@ -272,6 +390,7 @@ export async function fetchGlobalResults(): Promise<GlobalResultsPayload> {
     supabase
       .from("vt_matches")
       .select("user_id,participant_a_id,participant_b_id,winner_id"),
+    supabase.from("vt_users").select("id,display_name,is_completed"),
   ]);
 
   if (evalRes.error) {
@@ -280,11 +399,19 @@ export async function fetchGlobalResults(): Promise<GlobalResultsPayload> {
     );
   }
   if (matchRes.error) {
-    throw new Error(`Error al cargar duelos globales: ${matchRes.error.message}`);
+    throw new Error(
+      `Error al cargar duelos globales: ${matchRes.error.message}`
+    );
+  }
+  if (userRes.error) {
+    throw new Error(
+      `Error al cargar usuarios globales: ${userRes.error.message}`
+    );
   }
 
   return {
     evaluations: (evalRes.data ?? []) as VtEvaluation[],
     matches: (matchRes.data ?? []) as VtMatch[],
+    users: (userRes.data ?? []) as VtUserSummary[],
   };
 }

@@ -117,17 +117,31 @@ input[type="range"].vt-slider::-moz-range-thumb {
 .vt-zoom-swiper .swiper-button-next,
 .vt-zoom-swiper .swiper-button-prev {
   color: #ffffff;
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.12);
   backdrop-filter: blur(12px);
-  width: 44px;
-  height: 44px;
+  width: 36px;
+  height: 36px;
   border-radius: 9999px;
-  border: 1px solid rgba(255, 255, 255, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  transition: background-color 0.2s ease, transform 0.15s ease;
+}
+
+@media (min-width: 640px) {
+  .vt-zoom-swiper .swiper-button-next,
+  .vt-zoom-swiper .swiper-button-prev {
+    width: 44px;
+    height: 44px;
+  }
+}
+
+.vt-zoom-swiper .swiper-button-next:hover,
+.vt-zoom-swiper .swiper-button-prev:hover {
+  background: rgba(255, 255, 255, 0.24);
 }
 
 .vt-zoom-swiper .swiper-button-next::after,
 .vt-zoom-swiper .swiper-button-prev::after {
-  font-size: 16px;
+  font-size: 14px;
   font-weight: 700;
 }
 
