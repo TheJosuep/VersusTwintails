@@ -5,11 +5,13 @@ import { Swiper, SwiperSlide } from "swiper/react";
 import { FreeMode, Thumbs } from "swiper/modules";
 import type { Swiper as SwiperType } from "swiper";
 import { Maximize } from "lucide-react";
+import { getParticipantDisplay } from "@/lib/participants";
 import type { Participant } from "@/lib/types";
 import {
   shouldOpenLightboxOnImageTap,
   useLightbox,
 } from "./GlobalLightbox";
+import { useI18n } from "./LanguageContext";
 
 import "swiper/css";
 import "swiper/css/free-mode";
@@ -26,16 +28,19 @@ export function ParticipantGallery({
   sideLabel,
   isSelectedWinner = false,
 }: ParticipantGalleryProps) {
+  const { locale, t } = useI18n();
   const { openLightbox } = useLightbox();
   const [thumbsSwiper, setThumbsSwiper] = useState<SwiperType | null>(null);
   const [activeIndex, setActiveIndex] = useState(0);
+
+  const display = getParticipantDisplay(participant, locale);
 
   const openGalleryLightbox = (index: number) => {
     openLightbox({
       images: participant.images,
       initialIndex: index,
-      title: participant.name,
-      subtitle: participant.group,
+      title: display.name,
+      subtitle: display.group,
     });
   };
 
@@ -56,13 +61,13 @@ export function ParticipantGallery({
       <div className="flex items-start justify-between gap-2 px-1">
         <div className="min-w-0">
           <span className="inline-block text-[10px] font-medium uppercase tracking-widest text-white/45 sm:text-xs">
-            Participante {sideLabel}
+            {sideLabel === "A" ? t.participantSideA : t.participantSideB}
           </span>
           <h2 className="truncate text-base font-bold tracking-tight text-white sm:text-2xl">
-            {participant.name}
+            {display.name}
           </h2>
           <p className="truncate text-[11px] text-white/55 sm:text-xs">
-            {participant.group ?? "Sin grupo"}
+            {display.group ?? t.noGroup}
           </p>
         </div>
 
@@ -70,8 +75,8 @@ export function ParticipantGallery({
           type="button"
           onClick={() => openGalleryLightbox(activeIndex)}
           className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-white/15 bg-white/10 text-white/85 transition hover:scale-105 hover:bg-white hover:text-black active:scale-95 sm:h-9 sm:w-9"
-          aria-label={`Pantalla completa de ${participant.name}`}
-          title="Ver en pantalla de luz"
+          aria-label={`${t.fullscreenAriaPrefix} ${display.name}`}
+          title={t.fullscreenTitle}
         >
           <Maximize className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
         </button>
@@ -98,7 +103,7 @@ export function ParticipantGallery({
               <div className="group relative block h-full w-full cursor-pointer sm:cursor-grab sm:active:cursor-grabbing">
                 <img
                   src={src}
-                  alt={`${participant.name} ${idx + 1}`}
+                  alt={`${display.name} ${idx + 1}`}
                   loading={idx === 0 ? "eager" : "lazy"}
                   className="h-full w-full object-contain transition duration-300 sm:group-hover:scale-[1.015]"
                 />
@@ -142,7 +147,7 @@ export function ParticipantGallery({
               >
                 <img
                   src={src}
-                  alt={`${participant.name} miniatura ${idx + 1}`}
+                  alt={`${display.name} ${idx + 1}`}
                   loading="lazy"
                   className="h-full w-full object-cover object-top"
                 />

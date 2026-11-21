@@ -21,6 +21,8 @@ import {
 } from "swiper/modules";
 import type { Swiper as SwiperType } from "swiper";
 import { RotateCcw, X, ZoomIn, ZoomOut } from "lucide-react";
+import { formatText } from "@/lib/i18n";
+import { useI18n } from "./LanguageContext";
 
 import "swiper/css";
 import "swiper/css/free-mode";
@@ -98,6 +100,7 @@ function GlobalLightboxOverlay({
   payload: LightboxPayload;
   onClose: () => void;
 }) {
+  const { t } = useI18n();
   const mainSwiperRef = useRef<SwiperType | null>(null);
   const [thumbsSwiper, setThumbsSwiper] = useState<SwiperType | null>(null);
   const [activeIndex, setActiveIndex] = useState(payload.initialIndex ?? 0);
@@ -123,7 +126,7 @@ function GlobalLightboxOverlay({
       className="fixed inset-0 z-[9999] flex h-[100dvh] w-screen flex-col bg-black/95 backdrop-blur-2xl"
       role="dialog"
       aria-modal="true"
-      aria-label={`Pantalla de luz de ${title}`}
+      aria-label={`${t.lightboxAriaPrefix} ${title}`}
     >
       {/* Top Controls Bar */}
       <div className="flex items-center justify-between gap-3 border-b border-white/10 bg-black/60 px-4 py-3 backdrop-blur-md sm:px-6">
@@ -146,8 +149,8 @@ function GlobalLightboxOverlay({
             type="button"
             onClick={() => mainSwiperRef.current?.zoom.out()}
             className="flex h-9 w-9 items-center justify-center rounded-full border border-white/15 bg-white/10 text-white transition hover:bg-white/20 active:scale-95 sm:h-10 sm:w-10"
-            aria-label="Alejar"
-            title="Alejar"
+            aria-label={t.lightboxZoomOut}
+            title={t.lightboxZoomOut}
           >
             <ZoomOut className="h-4 w-4" />
           </button>
@@ -155,8 +158,8 @@ function GlobalLightboxOverlay({
             type="button"
             onClick={() => mainSwiperRef.current?.zoom.in()}
             className="flex h-9 w-9 items-center justify-center rounded-full border border-white/15 bg-white/10 text-white transition hover:bg-white/20 active:scale-95 sm:h-10 sm:w-10"
-            aria-label="Acercar"
-            title="Acercar"
+            aria-label={t.lightboxZoomIn}
+            title={t.lightboxZoomIn}
           >
             <ZoomIn className="h-4 w-4" />
           </button>
@@ -168,8 +171,8 @@ function GlobalLightboxOverlay({
               }
             }}
             className="hidden h-10 w-10 items-center justify-center rounded-full border border-white/15 bg-white/10 text-white transition hover:bg-white/20 active:scale-95 sm:flex"
-            aria-label="Restablecer zoom"
-            title="Restablecer zoom"
+            aria-label={t.lightboxResetZoom}
+            title={t.lightboxResetZoom}
           >
             <RotateCcw className="h-4 w-4" />
           </button>
@@ -177,8 +180,8 @@ function GlobalLightboxOverlay({
             type="button"
             onClick={onClose}
             className="flex h-9 w-9 items-center justify-center rounded-full bg-white text-black transition hover:bg-white/90 active:scale-95 sm:h-10 sm:w-10"
-            aria-label="Cerrar pantalla de luz"
-            title="Cerrar (Esc)"
+            aria-label={t.lightboxClose}
+            title={`${t.lightboxClose} (Esc)`}
           >
             <X className="h-5 w-5" />
           </button>
@@ -257,7 +260,7 @@ function GlobalLightboxOverlay({
                   >
                     <img
                       src={src}
-                      alt={`${title} miniatura ${idx + 1}`}
+                      alt={`${title} ${idx + 1}`}
                       loading="lazy"
                       className="h-full w-full object-cover object-top"
                     />
@@ -269,7 +272,7 @@ function GlobalLightboxOverlay({
         </div>
 
         <p className="mt-2 text-center text-[11px] text-white/45">
-          Zoom {zoomScale.toFixed(1)}x · Doble toque o pellizco para acercar · Desliza para cambiar foto
+          {formatText(t.lightboxHint, { scale: zoomScale.toFixed(1) })}
         </p>
       </div>
     </div>

@@ -2,7 +2,9 @@
   {
     "id": "amano-konoa",
     "name": "Amano Konoa",
+    "nameJa": "天野 香乃愛",
     "group": "≒JOY",
+    "groupJa": "≒JOY",
     "folderName": "Amano Konoa (≒JOY)",
     "images": [
       "/participants/amano-konoa/01.jpg",
@@ -19,7 +21,9 @@
   {
     "id": "anzu-julia",
     "name": "Anzu Julia",
+    "nameJa": "杏 ジュリア",
     "group": "Love Live! School Idol The Drama",
+    "groupJa": "ラブライブ！スクールアイドル・ザ・ドラマ",
     "folderName": "Anzu Julia (Love Live! School Idol The Drama)",
     "images": [
       "/participants/anzu-julia/01.jpg",
@@ -37,7 +41,9 @@
   {
     "id": "aoyama-nagisa",
     "name": "Aoyama Nagisa",
+    "nameJa": "青山 なぎさ",
     "group": "Love Live! Superstar!!",
+    "groupJa": "ラブライブ！スーパースター!!",
     "folderName": "Aoyama Nagisa (Love Live! Superstar!!)",
     "images": [
       "/participants/aoyama-nagisa/01.jpg",
@@ -55,7 +61,9 @@
   {
     "id": "asahina-rinka",
     "name": "Asahina Rinka",
+    "nameJa": "朝日奈 凛佳",
     "group": "MAGICAL SPEC",
+    "groupJa": "MAGICAL SPEC",
     "folderName": "Asahina Rinka",
     "images": [
       "/participants/asahina-rinka/01.jpg",
@@ -73,7 +81,9 @@
   {
     "id": "asamiya-hinata",
     "name": "Asamiya Hinata",
+    "nameJa": "朝宮 日向",
     "group": "RainTree",
+    "groupJa": "Rain Tree",
     "folderName": "Asamiya Hinata",
     "images": [
       "/participants/asamiya-hinata/01.jpg",
@@ -91,7 +101,9 @@
   {
     "id": "ayu-amahane",
     "name": "Ayu Amahane",
+    "nameJa": "天羽 あゆ",
     "group": "RAViDAVi",
+    "groupJa": "RAViDAVi",
     "folderName": "Ayu Amahane",
     "images": [
       "/participants/ayu-amahane/01.jpg",
@@ -109,7 +121,9 @@
   {
     "id": "azusa-onodera",
     "name": "Azusa Onodera",
+    "nameJa": "小野寺 梓",
     "group": "fav me",
+    "groupJa": "fav me",
     "folderName": "Azusa Onodera",
     "images": [
       "/participants/azusa-onodera/01.jpg",
@@ -127,7 +141,9 @@
   {
     "id": "chiba-yuna",
     "name": "Chiba Yuna",
+    "nameJa": "千葉 ゆな",
     "group": "Kyururin te Shitemite",
+    "groupJa": "きゅるりんってしてみて",
     "folderName": "Chiba Yuna",
     "images": [
       "/participants/chiba-yuna/01.jpg",
@@ -145,7 +161,9 @@
   {
     "id": "endo-rino",
     "name": "Endo Rino",
+    "nameJa": "遠藤 莉乃",
     "group": "RainTree",
+    "groupJa": "Rain Tree",
     "folderName": "Endo Rino",
     "images": [
       "/participants/endo-rino/01.jpg",
@@ -163,7 +181,9 @@
   {
     "id": "fuwawa",
     "name": "Fuwawa",
+    "nameJa": "ふわわ",
     "group": "Kakumei Meloic",
+    "groupJa": "革命メロイック",
     "folderName": "Fuwawa",
     "images": [
       "/participants/fuwawa/01.jpg",
@@ -181,7 +201,9 @@
   {
     "id": "hiruta-airi",
     "name": "Hiruta Airi",
+    "nameJa": "蛭田 愛梨",
     "group": "Niji no Conquistador",
+    "groupJa": "虹のコンキスタドール",
     "folderName": "Hiruta Airi",
     "images": [
       "/participants/hiruta-airi/01.jpg",
@@ -199,7 +221,9 @@
   {
     "id": "kan-kanna",
     "name": "Kan Kanna",
+    "nameJa": "菅 叶和",
     "group": "Love Live! Hasu no Sora School idol Club",
+    "groupJa": "ラブライブ！蓮ノ空女学院スクールアイドルクラブ",
     "folderName": "Kan Kanna (Love Live! Hasu no Sora School idol Club)",
     "images": [
       "/participants/kan-kanna/01.jpg",
@@ -217,7 +241,9 @@
   {
     "id": "kanae-kokoro",
     "name": "Kanae Kokoro",
+    "nameJa": "心安 かなえ",
     "group": "SKA noaf",
+    "groupJa": "NO♡AF",
     "folderName": "Kanae Kokoro",
     "images": [
       "/participants/kanae-kokoro/01.jpg",
@@ -235,7 +261,9 @@
   {
     "id": "kanzaki-ran",
     "name": "Kanzaki Ran",
+    "nameJa": "神崎 らん",
     "group": "Root mimi",
+    "groupJa": "Root mimi",
     "folderName": "Kanzaki Ran",
     "images": [
       "/participants/kanzaki-ran/01.jpg",
@@ -253,7 +281,9 @@
   {
     "id": "kohane-kurumi",
     "name": "Kohane Kurumi",
+    "nameJa": "恋羽 くるみ",
     "group": "Beloved",
+    "groupJa": "Beloved",
     "folderName": "Kohane Kurumi",
     "images": [
       "/participants/kohane-kurumi/01.jpg",
@@ -271,7 +301,9 @@
   {
     "id": "matsumoto-karen",
     "name": "Matsumoto Karen",
+    "nameJa": "松本 かれん",
     "group": "FRUITS ZIPPER, PiKi",
+    "groupJa": "FRUITS ZIPPER, PiKi",
     "folderName": "Matsumoto Karen",
     "images": [
       "/participants/matsumoto-karen/01.jpg",
@@ -289,7 +321,9 @@
   {
     "id": "miokawa-maika",
     "name": "Miokawa Maika",
+    "nameJa": "澪川 舞香",
     "group": "fav me",
+    "groupJa": "fav me",
     "folderName": "Miokawa Maika",
     "images": [
       "/participants/miokawa-maika/01.jpg",
@@ -307,7 +341,9 @@
   {
     "id": "mishina-ruka",
     "name": "Mishina Ruka",
+    "nameJa": "三品 瑠香",
     "group": "Wasuta",
+    "groupJa": "わーすた",
     "folderName": "Mishina Ruka",
     "images": [
       "/participants/mishina-ruka/01.jpg",
@@ -325,7 +361,9 @@
   {
     "id": "miyoshi-yuki",
     "name": "Miyoshi Yuki",
+    "nameJa": "三好 佑季",
     "group": "AND CaaaLL",
+    "groupJa": "AND CaaaLL",
     "folderName": "Miyoshi Yuki",
     "images": [
       "/participants/miyoshi-yuki/01.jpg",
@@ -343,7 +381,9 @@
   {
     "id": "momona-matsumoto",
     "name": "Momona Matsumoto",
+    "nameJa": "松本 ももな",
     "group": "Takane no Nadeshiko",
+    "groupJa": "高嶺のなでしこ",
     "folderName": "Momona Matsumoto",
     "images": [
       "/participants/momona-matsumoto/01.jpg",
@@ -361,7 +401,9 @@
   {
     "id": "nagata-shiori",
     "name": "Nagata Shiori",
+    "nameJa": "永田 詩央里",
     "group": "≠ME",
+    "groupJa": "≠ME",
     "folderName": "Nagata Shiori (≠ME)",
     "images": [
       "/participants/nagata-shiori/01.jpg",
@@ -379,7 +421,9 @@
   {
     "id": "nigemizu-amu",
     "name": "Nigemizu Amu",
+    "nameJa": "逃げ水 あむ",
     "group": "Kyururin te Shitemite",
+    "groupJa": "きゅるりんってしてみて",
     "folderName": "Nigemizu Amu",
     "images": [
       "/participants/nigemizu-amu/01.jpg",
@@ -397,7 +441,9 @@
   {
     "id": "nozomi-suzuhara",
     "name": "Nozomi Suzuhara",
+    "nameJa": "鈴原 希実",
     "group": "Love Live! Superstar!!",
+    "groupJa": "ラブライブ！スーパースター!!",
     "folderName": "Nozomi Suzuhara",
     "images": [
       "/participants/nozomi-suzuhara/01.jpg",
@@ -415,7 +461,9 @@
   {
     "id": "oshida-mitsuki",
     "name": "Oshida Mitsuki",
+    "nameJa": "大信田 美月",
     "group": "≒JOY",
+    "groupJa": "≒JOY",
     "folderName": "Oshida Mitsuki (≒JOY)",
     "images": [
       "/participants/oshida-mitsuki/01.jpg",
@@ -433,7 +481,9 @@
   {
     "id": "otani-emiri",
     "name": "Otani Emiri",
+    "nameJa": "大谷 映美里",
     "group": "=LOVE",
+    "groupJa": "=LOVE",
     "folderName": "Otani Emiri",
     "images": [
       "/participants/otani-emiri/01.jpg",
@@ -451,7 +501,9 @@
   {
     "id": "otoshima-risa",
     "name": "Otoshima Risa",
+    "nameJa": "音嶋 莉沙",
     "group": "=LOVE",
+    "groupJa": "=LOVE",
     "folderName": "Otoshima Risa",
     "images": [
       "/participants/otoshima-risa/01.jpg",
@@ -469,7 +521,9 @@
   {
     "id": "risa-furusawa",
     "name": "Risa Furusawa",
+    "nameJa": "古澤 里紗",
     "group": "CUTIE STREET",
+    "groupJa": "CUTIE STREET",
     "folderName": "Risa Furusawa",
     "images": [
       "/participants/risa-furusawa/01.jpg",
@@ -487,7 +541,9 @@
   {
     "id": "saito-kiara",
     "name": "Saito Kiara",
+    "nameJa": "齋藤 樹愛羅",
     "group": "=LOVE",
+    "groupJa": "=LOVE",
     "folderName": "Saito Kiara",
     "images": [
       "/participants/saito-kiara/01.jpg",
@@ -504,7 +560,9 @@
   {
     "id": "sakikawa-hinano",
     "name": "Sakikawa Hinano",
+    "nameJa": "咲川 ひなの",
     "group": "BanG Dream!",
+    "groupJa": "BanG Dream!",
     "folderName": "Sakikawa Hinano",
     "images": [
       "/participants/sakikawa-hinano/01.jpg",
@@ -522,7 +580,9 @@
   {
     "id": "sakuraba-haruka",
     "name": "Sakuraba Haruka",
+    "nameJa": "桜庭 遥花",
     "group": "CUTIE STREET, PiKi",
+    "groupJa": "CUTIE STREET, PiKi",
     "folderName": "Sakuraba Haruka",
     "images": [
       "/participants/sakuraba-haruka/01.jpg",
@@ -540,7 +600,9 @@
   {
     "id": "sakurai-momo",
     "name": "Sakurai Momo",
+    "nameJa": "櫻井 もも",
     "group": "≠ME",
+    "groupJa": "≠ME",
     "folderName": "Sakurai Momo",
     "images": [
       "/participants/sakurai-momo/01.jpg",
@@ -558,7 +620,9 @@
   {
     "id": "sato-rika",
     "name": "Sato Rika",
+    "nameJa": "佐藤 莉華",
     "group": "RainTree",
+    "groupJa": "Rain Tree",
     "folderName": "Sato Rika",
     "images": [
       "/participants/sato-rika/01.jpg",
@@ -576,7 +640,9 @@
   {
     "id": "suganami-mirei",
     "name": "Suganami Mirei",
+    "nameJa": "菅波 美玲",
     "group": "≠ME, graduada",
+    "groupJa": "≠ME（卒業）",
     "folderName": "Suganami Mirei (≠ME, graduada)",
     "images": [
       "/participants/suganami-mirei/01.jpg",
@@ -594,7 +660,9 @@
   {
     "id": "tsuki-nagisa",
     "name": "Tsuki Nagisa",
+    "nameJa": "月 なぎさ",
     "group": "Yoyoyoo",
+    "groupJa": "#よーよーよー",
     "folderName": "Tsuki Nagisa",
     "images": [
       "/participants/tsuki-nagisa/01.jpg",
@@ -612,7 +680,9 @@
   {
     "id": "yamada-momoka",
     "name": "Yamada Momoka",
+    "nameJa": "山田 杏佳",
     "group": null,
+    "groupJa": null,
     "folderName": "Yamada Momoka",
     "images": [
       "/participants/yamada-momoka/01.jpg",

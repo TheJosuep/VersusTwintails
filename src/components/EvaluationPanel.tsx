@@ -1,14 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import { Check, ChevronDown, Pencil, Trophy } from "lucide-react";
-import {
-  CRITERIA,
-  getAverageScore,
-  getRangeBand,
-  getRangeLabel,
-} from "@/lib/criteria";
+import { Check, ChevronDown, Info, Pencil, Trophy } from "lucide-react";
+import { CRITERIA, getAverageScore, getRangeBand } from "@/lib/criteria";
+import { getLocalizedRangeLabel } from "@/lib/i18n";
+import { getParticipantDisplay } from "@/lib/participants";
+import { isAllFiveEvaluation } from "@/lib/quality";
 import type { CriterionKey, Participant, Scores } from "@/lib/types";
+import { useI18n } from "./LanguageContext";
 
 interface EvaluationPanelProps {
   participant: Participant;
@@ -27,9 +26,12 @@ export function EvaluationPanel({
   onChangeScore,
   onPickWinner,
 }: EvaluationPanelProps) {
+  const { locale, t } = useI18n();
   const [editing, setEditing] = useState(!alreadyEvaluated);
   const avg = getAverageScore(scores);
   const showSliders = !alreadyEvaluated || editing;
+  const display = getParticipantDisplay(participant, locale);
+  const allDefaultFive = isAllFiveEvaluation(scores);
 
   return (
     <div className="flex flex-col justify-between gap-4 rounded-[25px] border border-white/10 bg-white/[0.04] p-4 backdrop-blur-md sm:p-5">
@@ -37,12 +39,12 @@ export function EvaluationPanel({
         <div className="flex items-center justify-between gap-2">
           <div>
             <h3 className="text-lg font-semibold tracking-tight text-white">
-              {participant.name}
+              {display.name}
             </h3>
             <p className="text-xs text-white/55">
               {alreadyEvaluated
-                ? "Evaluación guardada · Promedio " + avg.toFixed(1) + "/10"
-                : "Evalúa los 5 criterios (0 a 10)"}
+                ? `${t.savedEvalPrefix} ${avg.toFixed(1)}/10`
+                : t.evaluate5Prompt}
             </p>
           </div>
 
@@ -53,7 +55,7 @@ export function EvaluationPanel({
               className="inline-flex items-center gap-1.5 rounded-full border border-white/15 bg-white/5 px-3 py-1.5 text-xs font-medium text-white/85 transition hover:bg-white/15 active:scale-95"
             >
               <Pencil className="h-3 w-3" />
-              {editing ? "Ocultar" : "Editar"}
+              {editing ? t.hideScores : t.editScores}
               <ChevronDown
                 className={`h-3 w-3 transition-transform duration-200 ${
                   editing ? "rotate-180" : ""
@@ -78,7 +80,7 @@ export function EvaluationPanel({
                   {scores[criterion.key]}
                 </span>
                 <span className="mt-0.5 line-clamp-1 text-[10px] text-white/50">
-                  {criterion.label.split(" ")[0]}
+                  {t.criteria[criterion.key].shortLabel}
                 </span>
               </div>
             ))}
@@ -88,6 +90,7 @@ export function EvaluationPanel({
             {CRITERIA.map((criterion) => {
               const val = scores[criterion.key];
               const pct = (val / 10) * 100;
+              const cMeta = t.criteria[criterion.key];
               return (
                 <div
                   key={criterion.key}
@@ -95,7 +98,7 @@ export function EvaluationPanel({
                 >
                   <div className="flex items-center justify-between gap-2">
                     <span className="text-xs font-medium text-white/90 sm:text-sm">
-                      {criterion.label}
+                      {cMeta.label}
                     </span>
                     <span className="shrink-0 rounded-full bg-white px-2.5 py-0.5 text-xs font-bold text-black">
                       {val}
@@ -115,18 +118,25 @@ export function EvaluationPanel({
                     style={{
                       background: `linear-gradient(to right, #ffffff ${pct}%, rgba(255,255,255,0.16) ${pct}%)`,
                     }}
-                    aria-label={`${criterion.label} de ${participant.name}`}
+                    aria-label={`${cMeta.label} - ${display.name}`}
                   />
 
                   <div className="flex items-center justify-between text-[11px] text-white/55">
                     <span>{getRangeBand(val)}</span>
                     <span className="text-right text-white/80">
-                      {getRangeLabel(criterion, val)}
+                      {getLocalizedRangeLabel(criterion.key, val, locale)}
                     </span>
                   </div>
                 </div>
               );
             })}
+
+            {!alreadyEvaluated && allDefaultFive ? (
+              <p className="flex items-start gap-1.5 px-1 text-[11px] leading-snug text-white/50">
+                <Info className="mt-0.5 h-3.5 w-3.5 shrink-0 text-white/45" />
+                <span>{t.defaultFiveHint}</span>
+              </p>
+            ) : null}
           </div>
         )}
       </div>
@@ -142,7 +152,9 @@ export function EvaluationPanel({
         ) : (
           <Trophy className="h-4 w-4 transition-transform group-hover:scale-110" />
         )}
-        <span>Elegir ganadora a {participant.name}</span>
+        <span>
+          {t.pickWinnerPrefix} {display.name}
+        </span>
       </button>
     </div>
   );

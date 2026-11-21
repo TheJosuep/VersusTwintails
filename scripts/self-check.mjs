@@ -4,15 +4,39 @@ import path from "node:path";
 import vm from "node:vm";
 import ts from "typescript";
 
+function loadTsModule(relPath) {
+  const source = fs.readFileSync(path.resolve(relPath), "utf8");
+  const compiled = ts.transpileModule(source, {
+    compilerOptions: {
+      module: ts.ModuleKind.CommonJS,
+      target: ts.ScriptTarget.ES2020,
+    },
+  }).outputText;
+
+  const mod = { exports: {} };
+  vm.runInNewContext(compiled, {
+    module: mod,
+    exports: mod.exports,
+    require: () => ({}),
+    Math,
+    Map,
+    Set,
+    Array,
+    Object,
+  });
+  return mod.exports;
+}
+
 const PARTICIPANTS_PATH = path.resolve("src/data/participants.json");
 const participants = JSON.parse(fs.readFileSync(PARTICIPANTS_PATH, "utf8"));
 
-// 1. Validate 35 participants & all downloaded images
+// 1. Validate 35 participants, nameJa, & all downloaded images
 assert.equal(participants.length, 35, `Expected 35 participants, got ${participants.length}`);
 
 let totalImages = 0;
 for (const p of participants) {
   assert.ok(p.id && p.name, "Participant must have id and name");
+  assert.ok(p.nameJa && p.nameJa.trim().length > 0, `Participant ${p.id} missing nameJa`);
   assert.ok(Array.isArray(p.images) && p.images.length >= 9, `${p.name} should have images`);
   for (const rel of p.images) {
     const abs = path.resolve("public", rel.replace(/^\/+/, ""));
@@ -22,26 +46,9 @@ for (const p of participants) {
     totalImages++;
   }
 }
-console.log(`PASS [assets]: ${participants.length} participants, ${totalImages} verified images.`);
+console.log(`PASS [assets]: ${participants.length} participants (with nameJa), ${totalImages} verified images.`);
 
-// 2. Load real TypeScript matchmaking module and run 100 Swiss simulations + Bradley-Terry sanity check
-const mmSource = fs.readFileSync(path.resolve("src/lib/matchmaking.ts"), "utf8");
-const compiled = ts.transpileModule(mmSource, {
-  compilerOptions: {
-    module: ts.ModuleKind.CommonJS,
-    target: ts.ScriptTarget.ES2020,
-  },
-}).outputText;
-
-const mod = { exports: {} };
-vm.runInNewContext(compiled, {
-  module: mod,
-  exports: mod.exports,
-  Math,
-  Map,
-  Set,
-  Array,
-});
+// 2. Validate 100 Swiss simulations + Bradley-Terry sanity check
 const {
   SWISS_TOTAL_ROUNDS,
   getSwissTotalMatchups,
@@ -49,10 +56,10 @@ const {
   generateNextSwissRound,
   computeBradleyTerryRatings,
   generateCatchupMatches,
-} = mod.exports;
+} = loadTsModule("src/lib/matchmaking.ts");
 
 const ids = participants.map((p) => p.id);
-const trueStrength = new Map(ids.map((id, idx) => [id, idx])); // 0 (weakest) .. 34 (strongest)
+const trueStrength = new Map(ids.map((id, idx) => [id, idx]));
 const expectedTotal = getSwissTotalMatchups(ids.length);
 assert.equal(SWISS_TOTAL_ROUNDS, 4);
 assert.equal(expectedTotal, 70);
@@ -88,11 +95,7 @@ for (let sim = 0; sim < 100; sim++) {
     [4, 17],
   ]) {
     const roundPairs = generateNextSwissRound(ids, played, roundNum);
-    assert.equal(
-      roundPairs.length,
-      expectedLen,
-      `Round ${roundNum} must have ${expectedLen} duels`
-    );
+    assert.equal(roundPairs.length, expectedLen, `Round ${roundNum} must have ${expectedLen} duels`);
     for (const pair of roundPairs) {
       assert.notEqual(pair.a, pair.b, "Self-matchup forbidden");
       const sa = trueStrength.get(pair.a);
@@ -108,31 +111,20 @@ for (let sim = 0; sim < 100; sim++) {
     }
   }
 
-  assert.equal(played.length, 70, "Total matches must be 70");
-  assert.equal(
-    new Set(played.map((m) => m.pair_key)).size,
-    70,
-    "All 70 matchups must be unique (0 rematches)"
-  );
+  assert.equal(played.length, 70);
+  assert.equal(new Set(played.map((m) => m.pair_key)).size, 70);
 
   const ratings = computeBradleyTerryRatings(ids, played);
   for (const id of ids) {
-    assert.equal(
-      ratings.get(id).played,
-      4,
-      `Participant ${id} played ${ratings.get(id).played} != 4`
-    );
+    assert.equal(ratings.get(id).played, 4);
   }
 
-  const ranked = [...ids].sort(
-    (a, b) => ratings.get(b).rating - ratings.get(a).rating
-  );
+  const ranked = [...ids].sort((a, b) => ratings.get(b).rating - ratings.get(a).rating);
   const top10 = new Set(ranked.slice(0, 10));
   for (const trueTop of ids.slice(-5)) {
     if (top10.has(trueTop)) top5InTop10Hits++;
   }
 
-  // Spearman rank correlation between estimated rank (0..34 ascending) and trueStrength (0..34)
   const estOrder = [...ranked].reverse();
   let d2 = 0;
   for (let i = 0; i < estOrder.length; i++) {
@@ -140,38 +132,92 @@ for (let sim = 0; sim < 100; sim++) {
     d2 += d * d;
   }
   const n = ids.length;
-  const rho = 1 - (6 * d2) / (n * (n * n - 1));
-  spearmanSum += rho;
+  spearmanSum += 1 - (6 * d2) / (n * (n * n - 1));
 }
 
 const avgSpearman = spearmanSum / 100;
-assert.ok(
-  avgSpearman >= 0.7,
-  `Expected average Spearman >= 0.70, got ${avgSpearman.toFixed(3)}`
-);
+assert.ok(avgSpearman >= 0.7, `Expected average Spearman >= 0.70, got ${avgSpearman.toFixed(3)}`);
 
-// Also verify legacy catchup pairing fills 38 -> 70 without duplicates
-const sampleLegacy = generateRound1(ids)
-  .slice(0, 18)
-  .map((p) => ({
-    pair_key: p.pairKey,
-    participant_a_id: p.a,
-    participant_b_id: p.b,
-    winner_id: p.a,
-  }));
+const sampleLegacy = generateRound1(ids).slice(0, 18).map((p) => ({
+  pair_key: p.pairKey,
+  participant_a_id: p.a,
+  participant_b_id: p.b,
+  winner_id: p.a,
+}));
 const catchup = generateCatchupMatches(ids, sampleLegacy, 70);
-assert.equal(catchup.length, 52, "Catchup should generate remaining 52 duels");
-assert.equal(
-  new Set([...sampleLegacy.map((m) => m.pair_key), ...catchup.map((m) => m.pairKey)]).size,
-  70,
-  "Legacy catchup must not repeat pairs"
-);
+assert.equal(catchup.length, 52);
+assert.equal(new Set([...sampleLegacy.map((m) => m.pair_key), ...catchup.map((m) => m.pairKey)]).size, 70);
 
 console.log(
   `PASS [swiss+bt]: 100x 4-round simulations (70 unique duels, 4 per participant, avg Spearman=${avgSpearman.toFixed(3)}, top5-in-top10=${(top5InTop10Hits / 5).toFixed(1)}%).`
 );
 
-// 3. Validate live Supabase Data API connectivity & vt_* tables
+// 3. Validate anti-bias quality filter (src/lib/quality.ts)
+const { filterTrustedEvaluations } = loadTsModule("src/lib/quality.ts");
+const makeEval = (userId, pid, o, s, c, f, g) => ({
+  user_id: userId,
+  participant_id: pid,
+  originality: o,
+  symmetry: s,
+  color_aspect: c,
+  facial_harmony: f,
+  general_impact: g,
+});
+
+const syntheticEvals = [
+  // User 1: 35/35 all-5 default spam -> excluded (default_five_spam)
+  ...ids.map((pid) => makeEval("u-all5", pid, 5, 5, 5, 5, 5)),
+  // User 2: Kirtash-like (23/35 in 5/10 + 12 favorites in 8-10) -> excluded (default_five_spam)
+  ...ids.map((pid, i) =>
+    i < 23 ? makeEval("u-fav5", pid, 5, 5, 5, 5, 5) : makeEval("u-fav5", pid, 9, 9, 8, 9, 9)
+  ),
+  // User 3: Review-bomber (32 in 1/10 + 3 favorites in 10/10) -> excluded (uniform_spam)
+  ...ids.map((pid, i) =>
+    i < 32 ? makeEval("u-bomb", pid, 1, 1, 1, 1, 1) : makeEval("u-bomb", pid, 10, 10, 10, 10, 10)
+  ),
+  // User 4: Flat ballot (35 in 10/10) -> excluded (low_variance)
+  ...ids.map((pid) => makeEval("u-flat", pid, 10, 10, 10, 10, 10)),
+  // User 5: Genuine varied voter -> accepted (35 rows)
+  ...ids.map((pid, i) => {
+    const base = 4 + (i % 6);
+    return makeEval("u-valid", pid, base, Math.min(10, base + 1), Math.max(0, base - 1), base, Math.min(10, base + (i % 3)));
+  }),
+];
+
+const qRes = filterTrustedEvaluations(syntheticEvals);
+assert.equal(qRes.excludedUsers.get("u-all5"), "default_five_spam");
+assert.equal(qRes.excludedUsers.get("u-fav5"), "default_five_spam");
+assert.equal(qRes.excludedUsers.get("u-bomb"), "uniform_spam");
+assert.equal(qRes.excludedUsers.get("u-flat"), "low_variance");
+assert.equal(qRes.trustedUserCount, 1);
+assert.equal(qRes.excludedUserCount, 4);
+assert.equal(qRes.trustedEvaluations.length, 35);
+assert.ok(qRes.trustedUserIds.has("u-valid"));
+console.log("PASS [quality]: Excluded all-5, favoritism, review-bombing, and flat ballots while preserving genuine raters.");
+
+// 4. Validate i18n dictionary parity across es / en / ja
+const { TRANSLATIONS } = loadTsModule("src/lib/i18n.ts");
+function collectKeys(obj, prefix = "") {
+  if (typeof obj === "string") {
+    assert.ok(obj.trim().length > 0, `Empty translation string at ${prefix}`);
+    return [prefix];
+  }
+  if (Array.isArray(obj)) {
+    return obj.flatMap((item, idx) => collectKeys(item, `${prefix}[${idx}]`));
+  }
+  return Object.keys(obj)
+    .sort()
+    .flatMap((k) => collectKeys(obj[k], prefix ? `${prefix}.${k}` : k));
+}
+
+const esKeys = collectKeys(TRANSLATIONS.es);
+const enKeys = collectKeys(TRANSLATIONS.en);
+const jaKeys = collectKeys(TRANSLATIONS.ja);
+assert.deepEqual(enKeys, esKeys, "EN translation keys must match ES");
+assert.deepEqual(jaKeys, esKeys, "JA translation keys must match ES");
+console.log(`PASS [i18n]: ${esKeys.length} translation keys verified across es, en, ja.`);
+
+// 5. Validate live Supabase Data API connectivity & vt_* tables
 const envFile = fs.readFileSync(path.resolve(".env.local"), "utf8");
 const env = Object.fromEntries(
   envFile

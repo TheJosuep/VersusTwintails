@@ -1,7 +1,9 @@
 export interface Participant {
   id: string;
   name: string;
+  nameJa?: string;
   group: string | null;
+  groupJa?: string | null;
   folderName: string;
   images: string[];
 }

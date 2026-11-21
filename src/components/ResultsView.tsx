@@ -5,6 +5,7 @@ import {
   ArrowDownWideNarrow,
   ArrowUpNarrowWide,
   ChevronDown,
+  Info,
   Maximize,
   RefreshCw,
   Search,
@@ -13,9 +14,15 @@ import {
   Trophy,
   Users,
 } from "lucide-react";
-import { CRITERIA, getRangeLabel } from "@/lib/criteria";
+import { CRITERIA } from "@/lib/criteria";
+import { formatText, getLocalizedRangeLabel } from "@/lib/i18n";
 import { computeBradleyTerryRatings } from "@/lib/matchmaking";
-import { PARTICIPANT_MAP, PARTICIPANTS } from "@/lib/participants";
+import {
+  getParticipantDisplay,
+  PARTICIPANT_MAP,
+  PARTICIPANTS,
+} from "@/lib/participants";
+import { filterTrustedEvaluations } from "@/lib/quality";
 import { fetchGlobalResults, type GlobalResultsPayload } from "@/lib/storage";
 import type {
   CriterionKey,
@@ -29,6 +36,7 @@ import {
   shouldOpenLightboxOnImageTap,
   useLightbox,
 } from "./GlobalLightbox";
+import { useI18n } from "./LanguageContext";
 
 let cachedGlobalResults: GlobalResultsPayload | null = null;
 
@@ -43,7 +51,7 @@ type RankMode = "versus" | "score";
 type ScoreSortKey = "average" | CriterionKey;
 
 interface DuelOutcome {
-  opponentName: string;
+  opponent: Participant;
   won: boolean;
 }
 
@@ -93,11 +101,11 @@ function buildRanking(
       const pB = PARTICIPANT_MAP.get(m.participant_b_id);
       if (!pA || !pB) continue;
       historyByParticipant.get(pA.id)?.push({
-        opponentName: pB.name,
+        opponent: pB,
         won: m.winner_id === pA.id,
       });
       historyByParticipant.get(pB.id)?.push({
-        opponentName: pA.name,
+        opponent: pA,
         won: m.winner_id === pB.id,
       });
     }
@@ -149,9 +157,11 @@ function buildRanking(
 }
 
 export function ResultsView({
+  userId,
   ownEvaluations,
   ownMatches,
 }: ResultsViewProps) {
+  const { locale, t } = useI18n();
   const { openLightbox } = useLightbox();
   const [scope, setScope] = useState<ScopeMode>("own");
   const [rankMode, setRankMode] = useState<RankMode>("versus");
@@ -160,9 +170,8 @@ export function ResultsView({
   const [search, setSearch] = useState("");
   const [openIds, setOpenIds] = useState<Record<string, boolean>>({});
 
-  const [communityData, setCommunityData] = useState<GlobalResultsPayload | null>(
-    () => cachedGlobalResults
-  );
+  const [communityData, setCommunityData] =
+    useState<GlobalResultsPayload | null>(() => cachedGlobalResults);
   const [loadingCommunity, setLoadingCommunity] = useState(false);
   const [communityError, setCommunityError] = useState<string | null>(null);
 
@@ -175,9 +184,7 @@ export function ResultsView({
       setCommunityData(res);
     } catch (err) {
       setCommunityError(
-        err instanceof Error
-          ? err.message
-          : "No se pudieron cargar los resultados de la comunidad."
+        err instanceof Error ? err.message : t.loadingCommunity
       );
     } finally {
       setLoadingCommunity(false);
@@ -190,6 +197,18 @@ export function ResultsView({
     }
   }, [scope, communityData]);
 
+  const ownQuality = useMemo(
+    () => filterTrustedEvaluations(ownEvaluations),
+    [ownEvaluations]
+  );
+  const ownExclusionReason = ownQuality.excludedUsers.get(userId);
+
+  const communityQuality = useMemo(
+    () =>
+      communityData ? filterTrustedEvaluations(communityData.evaluations) : null,
+    [communityData]
+  );
+
   const ownRanking = useMemo(
     () => buildRanking(ownEvaluations, ownMatches, true),
     [ownEvaluations, ownMatches]
@@ -197,10 +216,14 @@ export function ResultsView({
 
   const communityRanking = useMemo(
     () =>
-      communityData
-        ? buildRanking(communityData.evaluations, communityData.matches, false)
+      communityData && communityQuality
+        ? buildRanking(
+            communityQuality.trustedEvaluations,
+            communityData.matches,
+            false
+          )
         : null,
-    [communityData]
+    [communityData, communityQuality]
   );
 
   const activeRanking =
@@ -209,7 +232,6 @@ export function ResultsView({
   const getScoreValue = (row: BuiltRanking["rows"][number]) =>
     scoreKey === "average" ? row.average : row.criteria[scoreKey];
 
-  // Always compute Top 3 descending for the podium in the active scope + rankMode
   const podiumRows = useMemo(() => {
     return [...activeRanking.rows]
       .sort((a, b) => {
@@ -231,11 +253,14 @@ export function ResultsView({
   const displayedRows = useMemo(() => {
     const q = search.trim().toLowerCase();
     const filtered = q
-      ? activeRanking.rows.filter(
-          (r) =>
-            r.participant.name.toLowerCase().includes(q) ||
-            (r.participant.group ?? "").toLowerCase().includes(q)
-        )
+      ? activeRanking.rows.filter(({ participant: p }) => {
+          return (
+            p.name.toLowerCase().includes(q) ||
+            (p.nameJa ?? "").toLowerCase().includes(q) ||
+            (p.group ?? "").toLowerCase().includes(q) ||
+            (p.groupJa ?? "").toLowerCase().includes(q)
+          );
+        })
       : activeRanking.rows;
 
     const dir = sortDesc ? 1 : -1;
@@ -254,11 +279,12 @@ export function ResultsView({
   }, [activeRanking, search, rankMode, scoreKey, sortDesc]);
 
   const openParticipantPhotos = (p: Participant) => {
+    const display = getParticipantDisplay(p, locale);
     openLightbox({
       images: p.images,
       initialIndex: 0,
-      title: p.name,
-      subtitle: p.group,
+      title: display.name,
+      subtitle: display.group,
     });
   };
 
@@ -274,24 +300,32 @@ export function ResultsView({
 
   const scoreLabel =
     scoreKey === "average"
-      ? "Promedio"
-      : CRITERIA.find((c) => c.key === scoreKey)?.label ?? "Puntuación";
+      ? t.sortAverageGeneral
+      : t.criteria[scoreKey].label;
 
   return (
     <div className="flex flex-col gap-5">
-      {/* Header + Scope Switch (Mis resultados vs Comunidad) */}
+      {/* Header + Scope Switch */}
       <div className="flex flex-col gap-4 rounded-[25px] border border-white/10 bg-white/[0.04] p-4 backdrop-blur-md sm:p-5">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <h2 className="text-2xl font-bold tracking-tight text-white">
-              Tabla de resultados
+              {t.resultsTitle}
             </h2>
             <p className="text-xs text-white/55">
               {scope === "own"
-                ? `Tus votos personales · ${ownMatches.length} duelos y ${ownEvaluations.length} evaluaciones`
-                : communityData
-                  ? `Comunidad · ${communityData.users.length} usuarios · ${communityData.matches.length} duelos`
-                  : "Cargando resultados globales..."}
+                ? formatText(t.resultsOwnSubtitle, {
+                    matches: ownMatches.length,
+                    evals: ownEvaluations.length,
+                  })
+                : communityData && communityQuality
+                  ? formatText(t.resultsCommunitySubtitle, {
+                      users: communityData.users.length,
+                      matches: communityData.matches.length,
+                      trusted: communityQuality.trustedUserCount,
+                      excluded: communityQuality.excludedUserCount,
+                    })
+                  : t.resultsCommunityLoading}
             </p>
           </div>
 
@@ -305,7 +339,7 @@ export function ResultsView({
               <RefreshCw
                 className={`h-3.5 w-3.5 ${loadingCommunity ? "animate-spin" : ""}`}
               />
-              <span>Actualizar</span>
+              <span>{t.refresh}</span>
             </button>
           ) : null}
         </div>
@@ -323,7 +357,7 @@ export function ResultsView({
               }`}
             >
               <Trophy className="h-3.5 w-3.5" />
-              <span>Mis resultados</span>
+              <span>{t.scopeOwn}</span>
             </button>
             <button
               type="button"
@@ -335,7 +369,7 @@ export function ResultsView({
               }`}
             >
               <Users className="h-3.5 w-3.5" />
-              <span>Comunidad</span>
+              <span>{t.scopeCommunity}</span>
             </button>
           </div>
 
@@ -350,7 +384,7 @@ export function ResultsView({
               }`}
             >
               <Swords className="h-3.5 w-3.5" />
-              <span>Por Versus</span>
+              <span>{t.modeVersus}</span>
             </button>
             <button
               type="button"
@@ -362,7 +396,7 @@ export function ResultsView({
               }`}
             >
               <SlidersHorizontal className="h-3.5 w-3.5" />
-              <span>Por Puntuación</span>
+              <span>{t.modeScore}</span>
             </button>
           </div>
         </div>
@@ -372,10 +406,10 @@ export function ResultsView({
           <div className="flex flex-wrap items-center gap-1.5">
             {(
               [
-                { key: "average", label: "Promedio general" },
+                { key: "average", label: t.sortAverageGeneral },
                 ...CRITERIA.map((c) => ({
                   key: c.key as ScoreSortKey,
-                  label: c.label.split(" ")[0],
+                  label: t.criteria[c.key].shortLabel,
                 })),
               ] as const
             ).map((opt) => (
@@ -394,6 +428,14 @@ export function ResultsView({
             ))}
           </div>
         ) : null}
+
+        {/* Subtle own-ballot exclusion notice when viewing own results */}
+        {scope === "own" && ownExclusionReason ? (
+          <div className="flex items-start gap-2 rounded-[16px] border border-white/15 bg-black/45 px-3.5 py-2.5 text-[11px] leading-snug text-white/70">
+            <Info className="mt-0.5 h-3.5 w-3.5 shrink-0 text-white/60" />
+            <span>{t.excludedOwnBanner[ownExclusionReason]}</span>
+          </div>
+        ) : null}
       </div>
 
       {/* Search + Order Direction */}
@@ -404,7 +446,7 @@ export function ResultsView({
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Buscar participante o grupo..."
+            placeholder={t.searchPlaceholder}
             className="w-full rounded-[25px] border border-white/10 bg-white/[0.04] py-2.5 pl-10 pr-4 text-sm text-white placeholder-white/40 backdrop-blur-md outline-none transition focus:border-white/35"
           />
         </div>
@@ -419,7 +461,7 @@ export function ResultsView({
           ) : (
             <ArrowUpNarrowWide className="h-4 w-4" />
           )}
-          <span>{sortDesc ? "Mayor a menor" : "Menor a mayor"}</span>
+          <span>{sortDesc ? t.sortDesc : t.sortAsc}</span>
         </button>
       </div>
 
@@ -431,59 +473,62 @@ export function ResultsView({
 
       {scope === "community" && loadingCommunity && !communityData ? (
         <div className="rounded-[25px] border border-white/10 bg-white/[0.04] p-8 text-center text-sm text-white/60">
-          Cargando resultados de la comunidad...
+          {t.loadingCommunity}
         </div>
       ) : (
         <>
-          {/* Top 3 Podium for active scope & mode */}
+          {/* Top 3 Podium */}
           {!search.trim() && podiumRows.length === 3 ? (
             <div className="grid grid-cols-3 gap-2.5 sm:gap-4">
-              {podiumRows.map((row, idx) => (
-                <div
-                  key={`${scope}-${rankMode}-${row.participant.id}`}
-                  className={`flex flex-col gap-2 rounded-[25px] border p-2.5 backdrop-blur-md sm:p-3.5 ${
-                    idx === 0
-                      ? "border-white/45 bg-white/[0.08]"
-                      : "border-white/10 bg-white/[0.04]"
-                  }`}
-                >
-                  <div className="relative aspect-[3/4] overflow-hidden rounded-[18px] bg-zinc-950">
-                    <img
-                      src={row.participant.images[0]}
-                      alt={row.participant.name}
-                      loading="lazy"
-                      onClick={() => handleAvatarTap(row.participant)}
-                      className="h-full w-full cursor-pointer object-cover object-top lg:cursor-default"
-                    />
-                    <span className="absolute left-2 top-2 rounded-full bg-white px-2.5 py-0.5 text-[11px] font-bold text-black">
-                      #{idx + 1}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => openParticipantPhotos(row.participant)}
-                      className="absolute right-2 top-2 flex h-7 w-7 items-center justify-center rounded-full border border-white/20 bg-black/70 text-white backdrop-blur-md transition hover:bg-white hover:text-black active:scale-95"
-                      aria-label={`Ver fotos de ${row.participant.name}`}
-                      title="Ver en pantalla de luz"
-                    >
-                      <Maximize className="h-3.5 w-3.5" />
-                    </button>
-                  </div>
+              {podiumRows.map((row, idx) => {
+                const display = getParticipantDisplay(row.participant, locale);
+                return (
+                  <div
+                    key={`${scope}-${rankMode}-${row.participant.id}`}
+                    className={`flex flex-col gap-2 rounded-[25px] border p-2.5 backdrop-blur-md sm:p-3.5 ${
+                      idx === 0
+                        ? "border-white/45 bg-white/[0.08]"
+                        : "border-white/10 bg-white/[0.04]"
+                    }`}
+                  >
+                    <div className="relative aspect-[3/4] overflow-hidden rounded-[18px] bg-zinc-950">
+                      <img
+                        src={row.participant.images[0]}
+                        alt={display.name}
+                        loading="lazy"
+                        onClick={() => handleAvatarTap(row.participant)}
+                        className="h-full w-full cursor-pointer object-cover object-top sm:cursor-default"
+                      />
+                      <span className="absolute left-2 top-2 rounded-full bg-white px-2.5 py-0.5 text-[11px] font-bold text-black">
+                        #{idx + 1}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => openParticipantPhotos(row.participant)}
+                        className="absolute right-2 top-2 flex h-7 w-7 items-center justify-center rounded-full border border-white/20 bg-black/70 text-white backdrop-blur-md transition hover:bg-white hover:text-black active:scale-95"
+                        aria-label={`${t.fullscreenAriaPrefix} ${display.name}`}
+                        title={t.fullscreenTitle}
+                      >
+                        <Maximize className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
 
-                  <div className="min-w-0 px-0.5">
-                    <h3 className="truncate text-xs font-bold text-white sm:text-base">
-                      {row.participant.name}
-                    </h3>
-                    <p className="truncate text-[10px] text-white/50 sm:text-xs">
-                      {row.participant.group ?? "Sin grupo"}
-                    </p>
-                    <p className="mt-1 text-[11px] font-semibold text-white/90 sm:text-xs">
-                      {rankMode === "versus"
-                        ? `Elo ${row.rating.rating} · ${row.rating.wins}-${row.rating.losses}`
-                        : `${scoreLabel}: ${getScoreValue(row).toFixed(1)}`}
-                    </p>
+                    <div className="min-w-0 px-0.5">
+                      <h3 className="truncate text-xs font-bold text-white sm:text-base">
+                        {display.name}
+                      </h3>
+                      <p className="truncate text-[10px] text-white/50 sm:text-xs">
+                        {display.group ?? t.noGroup}
+                      </p>
+                      <p className="mt-1 text-[11px] font-semibold text-white/90 sm:text-xs">
+                        {rankMode === "versus"
+                          ? `Elo ${row.rating.rating} · ${row.rating.wins}-${row.rating.losses}`
+                          : `${scoreLabel}: ${getScoreValue(row).toFixed(1)}`}
+                      </p>
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           ) : null}
 
@@ -491,6 +536,7 @@ export function ResultsView({
           <div className="flex flex-col gap-3">
             {displayedRows.map((row) => {
               const id = row.participant.id;
+              const display = getParticipantDisplay(row.participant, locale);
               const isOpen = Boolean(openIds[id]);
               const vRank = activeRanking.versusRank.get(id) ?? 0;
               const sRank = activeRanking.scoreRank.get(id) ?? 0;
@@ -498,7 +544,9 @@ export function ResultsView({
 
               const ownRefVersusRank = ownRanking.versusRank.get(id);
               const ownRefScoreRank = ownRanking.scoreRank.get(id);
-              const ownRow = ownRanking.rows.find((r) => r.participant.id === id);
+              const ownRow = ownRanking.rows.find(
+                (r) => r.participant.id === id
+              );
 
               return (
                 <div
@@ -518,7 +566,7 @@ export function ResultsView({
 
                       <img
                         src={row.participant.images[0]}
-                        alt={row.participant.name}
+                        alt={display.name}
                         loading="lazy"
                         onClick={(e) => {
                           if (shouldOpenLightboxOnImageTap()) {
@@ -531,10 +579,10 @@ export function ResultsView({
 
                       <div className="min-w-0">
                         <h3 className="truncate text-base font-bold tracking-tight text-white sm:text-lg">
-                          {row.participant.name}
+                          {display.name}
                         </h3>
                         <p className="truncate text-xs text-white/55">
-                          {row.participant.group ?? "Sin grupo"}
+                          {display.group ?? t.noGroup}
                         </p>
                       </div>
                     </button>
@@ -554,7 +602,7 @@ export function ResultsView({
                             {Math.round(row.rating.winRate)}%)
                           </span>
                           <span className="hidden rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 text-xs text-white/55 md:inline-block">
-                            Nota {row.average.toFixed(1)}
+                            {t.noteShortPrefix} {row.average.toFixed(1)}
                           </span>
                         </button>
                       ) : (
@@ -576,8 +624,8 @@ export function ResultsView({
                         type="button"
                         onClick={() => openParticipantPhotos(row.participant)}
                         className="flex h-8 w-8 items-center justify-center rounded-full border border-white/15 bg-white/5 text-white/80 transition hover:bg-white hover:text-black active:scale-95"
-                        aria-label={`Ver fotos de ${row.participant.name}`}
-                        title="Ver en pantalla de luz"
+                        aria-label={`${t.fullscreenAriaPrefix} ${display.name}`}
+                        title={t.fullscreenTitle}
                       >
                         <Maximize className="h-3.5 w-3.5" />
                       </button>
@@ -585,7 +633,7 @@ export function ResultsView({
                       <button
                         type="button"
                         onClick={() => toggleItem(id)}
-                        aria-label="Expandir detalle"
+                        aria-label={display.name}
                         className="flex h-8 w-8 items-center justify-center rounded-full text-white/60 transition hover:text-white"
                       >
                         <ChevronDown
@@ -597,7 +645,7 @@ export function ResultsView({
                     </div>
                   </div>
 
-                  {/* Collapsible Detail: Clean separation between Versus & Score within selected Scope */}
+                  {/* Collapsible Detail */}
                   <div
                     className={`grid transition-all duration-300 ease-out ${
                       isOpen
@@ -614,15 +662,15 @@ export function ResultsView({
                               <div>
                                 <span className="text-[10px] font-semibold uppercase tracking-widest text-white/50">
                                   {scope === "own"
-                                    ? "Tu Versus"
-                                    : "Versus Comunidad"}
+                                    ? t.podiumYourVersus
+                                    : t.podiumCommunityVersus}
                                 </span>
                                 <div className="mt-0.5 flex items-baseline gap-2">
                                   <span className="text-2xl font-bold text-white">
                                     Elo {row.rating.rating}
                                   </span>
                                   <span className="text-xs text-white/55">
-                                    Puesto #{vRank}
+                                    {t.rankLabel} #{vRank}
                                   </span>
                                 </div>
                               </div>
@@ -637,7 +685,7 @@ export function ResultsView({
                                   {Math.round(row.rating.winRate)}%
                                 </span>
                                 <span className="text-[10px] text-white/50">
-                                  Victorias
+                                  {t.victoriesLabel}
                                 </span>
                               </div>
                               <div className="rounded-[14px] border border-white/10 bg-white/[0.03] p-2">
@@ -645,7 +693,7 @@ export function ResultsView({
                                   {row.rating.played}
                                 </span>
                                 <span className="text-[10px] text-white/50">
-                                  Duelos
+                                  {t.duelsLabel}
                                 </span>
                               </div>
                               <div className="rounded-[14px] border border-white/10 bg-white/[0.03] p-2">
@@ -653,7 +701,7 @@ export function ResultsView({
                                   {row.rating.buchholz}
                                 </span>
                                 <span className="text-[10px] text-white/50">
-                                  Fuerza rivales
+                                  {t.opponentStrengthLabel}
                                 </span>
                               </div>
                             </div>
@@ -661,22 +709,30 @@ export function ResultsView({
                             {scope === "own" && row.duelHistory.length > 0 ? (
                               <div className="flex flex-col gap-1.5 pt-1">
                                 <span className="text-[11px] font-medium text-white/55">
-                                  Historial de tus enfrentamientos:
+                                  {t.duelHistoryLabel}
                                 </span>
                                 <div className="flex flex-wrap gap-1.5">
-                                  {row.duelHistory.map((d, i) => (
-                                    <span
-                                      key={`${d.opponentName}-${i}`}
-                                      className={`rounded-full border px-2.5 py-1 text-[11px] ${
-                                        d.won
-                                          ? "border-white/30 bg-white/12 text-white"
-                                          : "border-white/10 bg-black/60 text-white/50"
-                                      }`}
-                                    >
-                                      {d.won ? "✓ Ganó vs " : "✕ Cayó vs "}
-                                      {d.opponentName}
-                                    </span>
-                                  ))}
+                                  {row.duelHistory.map((d, i) => {
+                                    const oppName = getParticipantDisplay(
+                                      d.opponent,
+                                      locale
+                                    ).name;
+                                    return (
+                                      <span
+                                        key={`${d.opponent.id}-${i}`}
+                                        className={`rounded-full border px-2.5 py-1 text-[11px] ${
+                                          d.won
+                                            ? "border-white/30 bg-white/12 text-white"
+                                            : "border-white/10 bg-black/60 text-white/50"
+                                        }`}
+                                      >
+                                        {d.won
+                                          ? `${t.wonVsPrefix} `
+                                          : `${t.lostVsPrefix} `}
+                                        {oppName}
+                                      </span>
+                                    );
+                                  })}
                                 </div>
                               </div>
                             ) : null}
@@ -688,8 +744,8 @@ export function ResultsView({
                               <div>
                                 <span className="text-[10px] font-semibold uppercase tracking-widest text-white/50">
                                   {scope === "own"
-                                    ? "Tu Puntuación"
-                                    : "Puntuación Comunidad"}
+                                    ? t.podiumYourScore
+                                    : t.podiumCommunityScore}
                                 </span>
                                 <div className="mt-0.5 flex items-baseline gap-2">
                                   <span className="text-2xl font-bold text-white">
@@ -698,22 +754,23 @@ export function ResultsView({
                                       : "—"}
                                   </span>
                                   <span className="text-xs text-white/55">
-                                    Puesto #{sRank}
+                                    {t.rankLabel} #{sRank}
                                   </span>
                                 </div>
                               </div>
                               <span className="text-xs text-white/55">
                                 {scope === "own"
                                   ? row.evalCount > 0
-                                    ? "Evaluada"
-                                    : "Sin evaluar"
-                                  : `${row.evalCount} evals`}
+                                    ? t.evaluatedChip
+                                    : t.notEvaluatedChip
+                                  : `${row.evalCount} ${t.evalsCountSuffix}`}
                               </span>
                             </div>
 
                             <div className="flex flex-col gap-2.5">
                               {CRITERIA.map((c) => {
                                 const val = row.criteria[c.key];
+                                const cMeta = t.criteria[c.key];
                                 return (
                                   <div
                                     key={c.key}
@@ -721,7 +778,7 @@ export function ResultsView({
                                   >
                                     <div className="flex items-center justify-between gap-2 text-xs">
                                       <span className="truncate text-white/80">
-                                        {c.label}
+                                        {cMeta.label}
                                       </span>
                                       <span className="shrink-0 font-bold text-white">
                                         {row.evalCount > 0
@@ -739,8 +796,12 @@ export function ResultsView({
                                     </div>
                                     <span className="truncate text-[10px] text-white/45">
                                       {row.evalCount > 0
-                                        ? getRangeLabel(c, Math.round(val))
-                                        : "Sin datos"}
+                                        ? getLocalizedRangeLabel(
+                                            c.key,
+                                            Math.round(val),
+                                            locale
+                                          )
+                                        : t.noDataLabel}
                                     </span>
                                   </div>
                                 );
@@ -751,10 +812,11 @@ export function ResultsView({
 
                         {scope === "community" && ownRow ? (
                           <p className="rounded-[14px] border border-white/10 bg-white/[0.03] px-3.5 py-2 text-[11px] text-white/65">
-                            Tu referencia personal: #{ownRefVersusRank} en
-                            Versus (Elo {ownRow.rating.rating} ·{" "}
-                            {ownRow.rating.wins}W-{ownRow.rating.losses}L) · #
-                            {ownRefScoreRank} en Puntuación (
+                            {t.personalRefPrefix} #{ownRefVersusRank}{" "}
+                            {t.personalRefInVersus} (Elo{" "}
+                            {ownRow.rating.rating} · {ownRow.rating.wins}W-
+                            {ownRow.rating.losses}L) · #{ownRefScoreRank}{" "}
+                            {t.personalRefInScore} (
                             {ownRow.evalCount > 0
                               ? `${ownRow.average.toFixed(1)}/10`
                               : "—"}

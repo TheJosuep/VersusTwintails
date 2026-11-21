@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { CheckCircle2, Lock, LogOut, Sparkles } from "lucide-react";
+import { formatText } from "@/lib/i18n";
 import {
   PARTICIPANTS,
   SWISS_ROUNDS,
@@ -12,6 +13,11 @@ import { loadOrCreateUser } from "@/lib/storage";
 import type { VtEvaluation, VtMatch, VtUser } from "@/lib/types";
 import { LightboxProvider } from "./GlobalLightbox";
 import { HelpView } from "./HelpView";
+import {
+  LanguageProvider,
+  LanguageSwitcher,
+  useI18n,
+} from "./LanguageContext";
 import { ResultsView } from "./ResultsView";
 import { VersusView } from "./VersusView";
 
@@ -19,7 +25,22 @@ type TabIndex = 0 | 1 | 2;
 
 const STORAGE_USERNAME_KEY = "vt_username";
 
+type SessionNotice =
+  | { type: "created"; name: string }
+  | { type: "completed"; count: number }
+  | { type: "progress"; count: number; total: number }
+  | null;
+
 export function TournamentApp() {
+  return (
+    <LanguageProvider>
+      <TournamentAppInner />
+    </LanguageProvider>
+  );
+}
+
+function TournamentAppInner() {
+  const { t } = useI18n();
   const [user, setUser] = useState<VtUser | null>(null);
   const [evaluations, setEvaluations] = useState<VtEvaluation[]>([]);
   const [matches, setMatches] = useState<VtMatch[]>([]);
@@ -28,23 +49,22 @@ export function TournamentApp() {
   const [bootstrapping, setBootstrapping] = useState(true);
   const [authLoading, setAuthLoading] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
-  const [toast, setToast] = useState<string | null>(null);
+  const [sessionNotice, setSessionNotice] = useState<SessionNotice>(null);
   const [lockNotice, setLockNotice] = useState(false);
 
   const [activeTab, setActiveTab] = useState<TabIndex>(0);
   const [exitingTab, setExitingTab] = useState<TabIndex | null>(null);
   const [slideDir, setSlideDir] = useState<"forward" | "backward">("forward");
   const exitTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  const showToast = useCallback((msg: string) => {
-    setToast(msg);
-  }, []);
+  const tRef = useRef(t);
+  tRef.current = t;
+  const didBootstrapRef = useRef(false);
 
   useEffect(() => {
-    if (!toast) return;
-    const t = setTimeout(() => setToast(null), 4000);
-    return () => clearTimeout(t);
-  }, [toast]);
+    if (!sessionNotice) return;
+    const timer = setTimeout(() => setSessionNotice(null), 4000);
+    return () => clearTimeout(timer);
+  }, [sessionNotice]);
 
   const evaluationsMap = useMemo(() => {
     const map = new Map<string, VtEvaluation>();
@@ -70,7 +90,7 @@ export function TournamentApp() {
     async (rawName: string, silentIfMissing = false) => {
       const cleaned = rawName.trim();
       if (!cleaned) {
-        if (!silentIfMissing) setAuthError("Escribe un nombre de usuario.");
+        if (!silentIfMissing) setAuthError(tRef.current.loginEmptyError);
         return;
       }
 
@@ -90,27 +110,33 @@ export function TournamentApp() {
         }
 
         if (loaded.isReturning) {
-          showToast(
+          setSessionNotice(
             loaded.user.is_completed
-              ? `Torneo completado recuperado (${loaded.matches.length} duelos)`
-              : `Progreso recuperado · ${Math.min(loaded.matches.length, TOTAL_MATCHUPS)}/${TOTAL_MATCHUPS} duelos`
+              ? { type: "completed", count: loaded.matches.length }
+              : {
+                  type: "progress",
+                  count: Math.min(loaded.matches.length, TOTAL_MATCHUPS),
+                  total: TOTAL_MATCHUPS,
+                }
           );
         } else {
-          showToast(`Sesión creada para ${loaded.user.display_name}`);
+          setSessionNotice({ type: "created", name: loaded.user.display_name });
         }
       } catch (err) {
         setAuthError(
-          err instanceof Error ? err.message : "No se pudo iniciar sesión."
+          err instanceof Error ? err.message : tRef.current.loginEmptyError
         );
       } finally {
         setAuthLoading(false);
         setBootstrapping(false);
       }
     },
-    [showToast]
+    []
   );
 
   useEffect(() => {
+    if (didBootstrapRef.current) return;
+    didBootstrapRef.current = true;
     let saved = "";
     try {
       saved = localStorage.getItem(STORAGE_USERNAME_KEY) ?? "";
@@ -153,6 +179,7 @@ export function TournamentApp() {
     setActiveTab(0);
     setExitingTab(null);
     setAuthError(null);
+    setSessionNotice(null);
   };
 
   const handleVoteSuccess = (res: {
@@ -201,11 +228,24 @@ export function TournamentApp() {
     return <HelpView />;
   };
 
+  const toastText = sessionNotice
+    ? sessionNotice.type === "created"
+      ? formatText(t.sessionCreated, { name: sessionNotice.name })
+      : sessionNotice.type === "completed"
+        ? formatText(t.sessionRecoveredCompleted, {
+            count: sessionNotice.count,
+          })
+        : formatText(t.sessionRecoveredProgress, {
+            count: sessionNotice.count,
+            total: sessionNotice.total,
+          })
+    : null;
+
   if (bootstrapping) {
     return (
       <main className="flex min-h-screen items-center justify-center bg-black px-4">
         <div className="rounded-[25px] border border-white/10 bg-white/[0.04] px-6 py-4 text-sm text-white/70 backdrop-blur-md">
-          Cargando torneo...
+          {t.loadingTournament}
         </div>
       </main>
     );
@@ -215,15 +255,20 @@ export function TournamentApp() {
     return (
       <main className="flex min-h-screen items-center justify-center bg-black px-4 py-10">
         <div className="w-full max-w-md rounded-[25px] border border-white/15 bg-white/[0.04] p-6 backdrop-blur-xl sm:p-8">
-          <span className="text-[11px] font-semibold uppercase tracking-[0.2em] text-white/45">
-            Torneo Suizo · {SWISS_ROUNDS} Rondas · {TOTAL_MATCHUPS} Duelos
-          </span>
-          <h1 className="mt-2 text-3xl font-bold tracking-tight text-white sm:text-4xl">
-            Versus Twintails
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/45">
+              {formatText(t.loginBadge, {
+                rounds: SWISS_ROUNDS,
+                duels: TOTAL_MATCHUPS,
+              })}
+            </span>
+            <LanguageSwitcher />
+          </div>
+
+          <h1 className="mt-3 text-3xl font-bold tracking-tight text-white sm:text-4xl">
+            {t.appName}
           </h1>
-          <p className="mt-2 text-xs text-white/60">
-            Ingresa tu nombre de usuario para iniciar, autoguardar o recuperar tu progreso.
-          </p>
+          <p className="mt-2 text-xs text-white/60">{t.loginSubtitle}</p>
 
           <form
             onSubmit={(e) => {
@@ -236,7 +281,7 @@ export function TournamentApp() {
               type="text"
               value={usernameInput}
               onChange={(e) => setUsernameInput(e.target.value)}
-              placeholder="Tu nombre de usuario"
+              placeholder={t.loginPlaceholder}
               autoFocus
               maxLength={40}
               className="w-full rounded-[25px] border border-white/15 bg-black/70 px-5 py-3.5 text-sm text-white placeholder-white/35 outline-none transition focus:border-white"
@@ -251,7 +296,7 @@ export function TournamentApp() {
               disabled={authLoading}
               className="mt-1 rounded-[25px] bg-white px-6 py-3.5 text-sm font-bold text-black transition hover:bg-white/90 active:scale-[0.98] disabled:opacity-50"
             >
-              {authLoading ? "Entrando..." : "Entrar"}
+              {authLoading ? t.loggingIn : t.loginButton}
             </button>
           </form>
         </div>
@@ -266,19 +311,21 @@ export function TournamentApp() {
         <header className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <h1 className="text-2xl font-bold tracking-tight text-white sm:text-3xl">
-              Versus Twintails
+              {t.appName}
             </h1>
             <p className="text-xs text-white/55">
               {user.display_name} ·{" "}
-              {user.is_completed ? "Torneo completado" : "Autoguardado activo"}
+              {user.is_completed ? t.statusCompleted : t.statusAutosave}
             </p>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <LanguageSwitcher />
+
             {user.is_completed ? (
               <span className="inline-flex items-center gap-1 rounded-full border border-white/20 bg-white/10 px-3 py-1.5 text-[11px] font-medium text-white backdrop-blur-md">
                 <CheckCircle2 className="h-3.5 w-3.5" />
-                Finalizado
+                {t.finishedBadge}
               </span>
             ) : null}
 
@@ -286,19 +333,19 @@ export function TournamentApp() {
               type="button"
               onClick={handleLogout}
               className="inline-flex items-center gap-1.5 rounded-full border border-white/15 bg-white/5 px-3.5 py-1.5 text-xs font-medium text-white/80 backdrop-blur-md transition hover:bg-white hover:text-black active:scale-95"
-              title="Cambiar usuario"
+              title={t.changeUser}
             >
               <LogOut className="h-3.5 w-3.5" />
-              <span>Cambiar</span>
+              <span>{t.changeUser}</span>
             </button>
           </div>
         </header>
 
         {/* Recovery / Save Toast */}
-        {toast ? (
+        {toastText ? (
           <div className="flex items-center gap-2 self-start rounded-[25px] border border-white/20 bg-white/10 px-4 py-2 text-xs text-white backdrop-blur-md">
             <Sparkles className="h-3.5 w-3.5 shrink-0" />
-            <span>{toast}</span>
+            <span>{toastText}</span>
           </div>
         ) : null}
 
@@ -324,7 +371,7 @@ export function TournamentApp() {
                   : "text-white/70 hover:text-white"
               }`}
             >
-              Versus
+              {t.navVersus}
             </button>
 
             <button
@@ -342,7 +389,7 @@ export function TournamentApp() {
               {!resultsUnlocked ? (
                 <Lock className="h-3.5 w-3.5 shrink-0" />
               ) : null}
-              <span className="truncate">Tabla de resultados</span>
+              <span className="truncate">{t.navResults}</span>
             </button>
 
             <button
@@ -354,15 +401,19 @@ export function TournamentApp() {
                   : "text-white/70 hover:text-white"
               }`}
             >
-              Ayuda
+              {t.navHelp}
             </button>
           </nav>
 
           {lockNotice ? (
             <p className="text-center text-xs text-white/70">
-              Completa las {SWISS_ROUNDS} rondas suizas ({matches.length}/
-              {TOTAL_MATCHUPS} duelos y {evaluatedCount}/{TOTAL_PARTICIPANTS}{" "}
-              evaluadas) para desbloquear la Tabla de resultados.
+              {formatText(t.navLockedHint, {
+                rounds: SWISS_ROUNDS,
+                matches: matches.length,
+                duels: TOTAL_MATCHUPS,
+                evals: evaluatedCount,
+                participants: TOTAL_PARTICIPANTS,
+              })}
             </p>
           ) : null}
         </div>
